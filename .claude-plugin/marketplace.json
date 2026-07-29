@@ -1,0 +1,17 @@
+{
+  "name": "cz-harness-local",
+  "description": "Local marketplace for CZ-Harness plugin development",
+  "owner": {
+    "name": "HungNQ23"
+  },
+  "plugins": [
+    {
+      "name": "cz-harness",
+      "description": "An AI-native delivery Harness for FPT project managers. RD-driven, fully traceable, real-time observable.",
+      "author": {
+        "name": "HungNQ23"
+      },
+      "source": "./cz-harness"
+    }
+  ]
+}

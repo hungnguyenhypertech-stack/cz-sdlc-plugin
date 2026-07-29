@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-secrets.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-role-boundaries.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-rd-freeze.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-red-before-green.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/detect-hazard.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-state-transition.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-pipeline-order.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/emit-telemetry.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/project-state.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/render-deliverable.sh" }
+        ]
+      }
+    ]
+  },
+  "notes": [
+    "Hook order for PreToolUse matters: secrets and role-boundaries deny fastest/cheapest first; rd-freeze before red-before-green because a stale RD must block regardless of red-log state; detect-hazard is non-blocking (records only) and runs after the blocking guards so it never masks a deny; guard-state-transition only fires meaningfully on rd/*.md writes (no-ops elsewhere) — RDs are Markdown files with a YAML frontmatter block, not bare *.yaml (fixed 2026-07-28 after project-state.sh's rd/*.yaml glob was found to silently match zero real RDs).",
+    "guard-pipeline-order.sh (added 2026-07-29 per /cz:audit M4) only fires meaningfully on deliverables/*.md writes matching a named outer-pipeline artifact (SCOPE/SPEC/MODULEMAP/ARCH/WBS/EST/RISK/DELEGATION-MAP/DOR/DEVBOOK/RTM/WEEKLY/CASE-STUDY — plan §8.2's step table); it is a no-op on every other path, including rd/**, src/**, tests/**, and gate-records/** themselves, which the guards above it already own. Placed last because it never needs to preempt the others (a rejected write there never reaches a deliverables/*.md path anyway) and, unlike guard-state-transition (a single self-contained state-machine check), it reads gate-records/** written by the other guarded flows, so it makes sense to run once everything upstream of it in this same array has already had a chance to deny.",
+    "guard-claim-lock.sh is NOT wired here as a Write/Edit hook — it is invoked directly by /cz:rd and /cz:build at claim time, since a claim is a distinct action from a file write.",
+    "release-lock.sh (like restamp-lock.sh) is likewise NOT wired here — /cz:gate invokes it directly at step 8 when an RD is accepted, so the lock release is durably recorded (rd_release) in telemetry before the lock file is removed, added 2026-07-29 per /cz:audit UL-002.",
+    "Phase 3 risk (plan §13): if Claude Code hooks cannot intercept every write path, these guarantees become advisory. Fallback is /cz:audit retro-verification from git history + telemetry.",
+    "render-deliverable.sh is separate from the '*' PostToolUse block (and runs after it) because it only needs to fire on Write, and only for deliverables/**/*.md — it renders a sibling .html and rebuilds deliverables/index.html. It is purely cosmetic (human-readability) and must never deny a write; see docs/DELIVERABLES.md."
+  ]
+}

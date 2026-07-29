@@ -1,0 +1,17 @@
+# Per-project runtime — lives in the CONSUMING PROJECT's repo, never in this
+# plugin package (plan §11; see audit finding C5, which found exactly these
+# paths shipped inside the plugin as leaked dev/test data).
+/state/
+/telemetry/
+/rd/
+/agents/state/
+/agents/telemetry/
+/commands/state/
+/commands/telemetry/
+/hooks/state/
+/hooks/telemetry/
+/hooks/lib/state/
+/hooks/lib/telemetry/
+/evidence/
+/gate-records/
+/deliverables/reviews/

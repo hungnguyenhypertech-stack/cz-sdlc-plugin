@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cz-harness/schemas/gate-record.schema.json",
+  "title": "Gate record",
+  "description": "One JSON file per gate outcome under gate-records/. Audit finding N5 (2026-07-29): this schema previously described a single, richer per-gate-decision shape (gate_id/rd/gate_type/verdict/reviewer/ts) that nothing in the plugin ever wrote. Reconciled to describe the three shapes actually produced in production, confirmed against this project's own gate-records/*.json: (1) phase-level records (gate-records/PB<n>-*.json, written by /cz:scope through /cz:risk), (2) RD-level Definition-of-Ready records (gate-records/RD-*-dor.json, written by /cz:dor), and (3) RD-level review-gate records (gate-records/RD-*-gate.json, written by /cz:gate step 7). hooks/guard-pipeline-order.sh (M4's fix) mechanically checks shapes (1) and (2) via their flat `status:\"passed\"` field; nothing currently validates any gate-records/*.json file against this schema file mechanically (confirmed by grep — only this file's own $id and templates/gate-record-template.json's comment reference it), so widening this schema carries no runtime risk.",
+  "oneOf": [
+    { "$ref": "#/$defs/phaseGateRecord" },
+    { "$ref": "#/$defs/rdDorRecord" },
+    { "$ref": "#/$defs/rdReviewGateRecord" }
+  ],
+  "$defs": {
+    "phaseGateRecord": {
+      "title": "Phase-level gate record (gate-records/PB<n>-<name>.json)",
+      "description": "Written by the pipeline-phase commands (/cz:scope through /cz:risk) once a phase's gate closes. Example: gate-records/PB0-scope.json.",
+      "type": "object",
+      "required": ["step", "project", "status", "approver", "timestamp"],
+      "properties": {
+        "step": { "type": "integer", "minimum": 0, "description": "Pipeline phase number (0 = scope, 1 = spec, ... 6 = risk)." },
+        "project": { "type": "string", "description": "Project code, e.g. \"AIBOOTCAMP\"." },
+        "artifact": { "type": "string", "description": "The single deliverable this gate covers, e.g. \"SCOPE-AIBOOTCAMP.md\"." },
+        "artifacts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Used instead of `artifact` when a phase produces more than one deliverable (e.g. PB6-risk.json covers both RISK-*.md and DELEGATION-MAP-*.md)."
+        },
+        "status": { "type": "string", "enum": ["passed", "failed"] },
+        "approver": { "type": "string", "description": "\"auto\" (human_gates.<phase> is false) or a human identifier/note, e.g. \"human (via chat)\"." },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string", "description": "Free-text rationale for the auto/human decision. Optional; present on several real records (e.g. PB5-estimate.json, PB6-risk.json)." }
+      },
+      "additionalProperties": true
+    },
+    "rdDorRecord": {
+      "title": "RD-level Definition-of-Ready record (gate-records/RD-<id>-dor.json)",
+      "description": "Written by /cz:dor once an RD's Definition of Ready check passes. Flat shape, same family as phaseGateRecord but keyed by rd_id instead of step/project.",
+      "type": "object",
+      "required": ["rd_id", "status", "approver", "timestamp"],
+      "properties": {
+        "rd_id": { "type": "string", "pattern": "^RD-[A-Za-z0-9]+-[0-9]+\\.[0-9]+[a-z]?$" },
+        "status": { "type": "string", "enum": ["passed", "failed"] },
+        "approver": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": true
+    },
+    "rdReviewGateRecord": {
+      "title": "RD-level review-gate record (gate-records/RD-<id>-gate.json)",
+      "description": "Written by /cz:gate step 7 — the fixed-order AI-review -> [security-review] -> human-approval outcome for one RD's build cycle. Richer, nested shape; distinct from the flat phase/DOR records above.",
+      "type": "object",
+      "required": ["rd_id", "ai_review", "security_review", "gate_decision", "order_enforced"],
+      "properties": {
+        "rd_id": { "type": "string", "pattern": "^RD-[A-Za-z0-9]+-[0-9]+\\.[0-9]+[a-z]?$" },
+        "cycle": { "type": "integer", "minimum": 1, "description": "Which red-green-review cycle this gate record is for; increments each time a rejected RD loops back through /cz:build." },
+        "order_enforced": { "type": "boolean", "description": "True once the three-timestamp chronological-non-decreasing check (ai_review -> security_review -> gate_decision) described in /cz:gate step 7 has been satisfied." },
+        "devbook_precondition": {
+          "type": "object",
+          "description": "Optional pre-check recording that the DEVBOOK's green run was byte-identical to its red run before review began.",
+          "additionalProperties": true
+        },
+        "hazard_leash_lookup": {
+          "type": "object",
+          "description": "Optional record of the module/hazard/leash values used to decide whether security review was required (per DELEGATION-MAP-<proj>.md).",
+          "additionalProperties": true
+        },
+        "ai_review": {
+          "type": "object",
+          "required": ["verdict"],
+          "properties": {
+            "verdict": { "type": "string", "enum": ["pass", "fail"] },
+            "reviewer": { "type": "string" },
+            "report": { "type": "string" },
+            "findings": { "type": "array", "items": { "type": "string" } },
+            "timestamp": { "type": ["string", "null"], "format": "date-time" }
+          },
+          "additionalProperties": true
+        },
+        "security_review": {
+          "description": "Either the bare string \"not_required\" (security review not triggered — see /cz:gate step 5), or an object once a security review actually ran.",
+          "oneOf": [
+            { "type": "string", "enum": ["not_required"] },
+            {
+              "type": "object",
+              "required": ["verdict"],
+              "properties": {
+                "verdict": { "type": "string", "enum": ["pass", "fail", "not_required"] },
+                "reason": { "type": "string" },
+                "reviewer": { "type": "string" },
+                "findings": { "type": "array", "items": { "type": "string" } },
+                "timestamp": { "type": ["string", "null"], "format": "date-time" }
+              },
+              "additionalProperties": true
+            }
+          ]
+        },
+        "gate_decision": {
+          "type": "object",
+          "required": ["approver", "decision", "timestamp"],
+          "properties": {
+            "approver": { "type": "string", "description": "\"auto\" (human_gates.gate is false) or a human identifier." },
+            "decision": { "type": "string", "enum": ["approved", "rejected"] },
+            "reason": { "type": "string" },
+            "timestamp": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

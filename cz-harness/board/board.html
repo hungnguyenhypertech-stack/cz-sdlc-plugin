@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CZ-Harness Live Board</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121821;
+    --panel2: #0f1420;
+    --border: #263140;
+    --text: #d7e0ea;
+    --dim: #7c8b9c;
+    --amber: #e0a030;
+    --red: #e05555;
+    --green: #4caf6f;
+    --blue: #4a9eda;
+    --purple: #a377e0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 13px;
+    margin: 0;
+    padding: 16px;
+  }
+  .header {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    background: var(--panel);
+  }
+  .header .title-row {
+    display: flex;
+    justify-content: space-between;
+    color: var(--dim);
+    margin-bottom: 6px;
+  }
+  .header .title-row strong { color: var(--text); }
+  .alerts { color: var(--amber); margin-bottom: 4px; }
+  .alerts .hardstop { color: var(--red); }
+  .alerts .stalled { color: var(--red); }
+  .counts { color: var(--text); margin-bottom: 4px; }
+  .cost-line { color: var(--dim); }
+  .risk-LOW { color: var(--green); font-weight: bold; }
+  .risk-MEDIUM { color: var(--amber); font-weight: bold; }
+  .risk-HIGH { color: var(--red); font-weight: bold; }
+
+  /* ---------- tabs ---------- */
+  .tabbar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    color: var(--dim);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 7px 14px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+  }
+  .tab-btn.active { color: var(--text); background: var(--panel); border-color: var(--blue); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ---------- workflow diagram ---------- */
+  .wf-search {
+    margin-bottom: 10px;
+  }
+  .wf-search input {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    width: 260px;
+  }
+  .wf-legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--dim); font-size: 11px; margin-bottom: 12px; }
+  .wf-legend .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .wf-lane {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 12px;
+    margin-bottom: 14px;
+  }
+  .wf-lane-title {
+    color: var(--dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 10px;
+  }
+  /* single vertical column: every phase stacks top-to-bottom */
+  .wf-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .wf-node {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel2);
+    padding: 8px 12px;
+    min-width: 220px;
+    max-width: 360px;
+    text-align: center;
+    position: relative;
+  }
+  .wf-node .step { color: var(--blue); font-weight: bold; font-size: 12px; }
+  .wf-node .agent { color: var(--dim); font-size: 10px; margin-top: 2px; }
+  .wf-node.gate { border-color: var(--amber); }
+  .wf-node.gate .step { color: var(--amber); }
+  .wf-node.spawn { border-style: dashed; border-color: var(--purple); }
+  .wf-node.spawn .step { color: var(--purple); }
+  .wf-node.terminal-good { border-color: var(--green); }
+  .wf-node.terminal-good .step { color: var(--green); }
+  .wf-node.terminal-bad { border-color: var(--red); }
+  .wf-node.terminal-bad .step { color: var(--red); }
+  .wf-node.dim-match { opacity: 1; }
+  .wf-node.dim-fade { opacity: 0.25; }
+  .wf-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border);
+    font-size: 16px;
+    padding: 4px 0;
+    min-height: 16px;
+  }
+  .wf-arrow.loop { color: var(--red); font-size: 11px; white-space: normal; text-align: center; max-width: 280px; padding: 6px 0; }
+  .wf-sub {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+  }
+  .wf-sub-label { color: var(--dim); font-size: 10px; margin-bottom: 6px; text-align: center; }
+  .wf-note { color: var(--dim); font-size: 11px; margin-top: 6px; text-align: center; max-width: 380px; }
+  .wf-branch { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .wf-branch-row { display: flex; flex-direction: row; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  /* ---------- the phase 7-9 loop box ---------- */
+  .wf-loopbox {
+    align-self: stretch;
+    width: 100%;
+    max-width: 480px;
+    margin: 4px auto;
+    border: 2px dashed var(--red);
+    border-radius: 10px;
+    background: rgba(224, 85, 85, 0.05);
+    padding: 18px 16px 14px;
+    position: relative;
+  }
+  .wf-loopbox-badge {
+    position: absolute;
+    top: -11px;
+    left: 16px;
+    background: var(--bg);
+    color: var(--red);
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 8px;
+  }
+  .wf-loop-back {
+    color: var(--red);
+    font-size: 11px;
+    text-align: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    max-width: 380px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .wf-once-badge {
+    display: inline-block;
+    color: var(--green);
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid var(--green);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin: 2px 0 8px;
+  }
+
+  /* ---------- phase overview table ---------- */
+  .wf-table-wrap { margin-top: 18px; overflow-x: auto; }
+  table.wf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.wf-table th, table.wf-table td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  table.wf-table th { background: var(--panel); color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: 0.03em; }
+  table.wf-table td.runs-once { color: var(--green); white-space: nowrap; }
+  table.wf-table td.runs-loop { color: var(--red); white-space: nowrap; }
+  table.wf-table tr.loop-row td { background: rgba(224, 85, 85, 0.04); }
+  table.wf-table code { color: var(--blue); background: var(--panel2); padding: 1px 5px; border-radius: 3px; }
+
+  /* ---------- existing kanban board ---------- */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .col {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+  }
+  .col-head {
+    padding: 6px 8px;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border);
+    color: var(--dim);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .col-body { padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #0f1420;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .card .rd-id { color: var(--blue); font-weight: bold; }
+  .card .meta { color: var(--dim); }
+  .card.amber { border-color: var(--amber); }
+  .card.red { border-color: var(--red); }
+  .card.hidden { display: none; }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 0 4px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    margin-left: 4px;
+  }
+
+  .strip { display: flex; flex-direction: column; gap: 2px; }
+  .strip-row { padding: 2px 4px; }
+  .strip-row.hardstop { color: var(--red); }
+  .strip-row.draft { color: var(--dim); font-style: italic; }
+  .strip-row.stale { color: var(--amber); }
+  .strip-row.blocked { color: var(--dim); }
+  .strip-row.withdrawn { color: var(--dim); }
+
+  .empty { color: var(--border); font-style: italic; padding: 4px; }
+  .footer { color: var(--dim); margin-top: 10px; font-size: 11px; }
+
+  .section-label {
+    color: var(--dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 14px 0 6px;
+  }
+  .phases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .phase-chip {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    background: var(--panel);
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  .phase-chip .step { color: var(--dim); margin-right: 4px; }
+  .phase-chip.passed { border-color: var(--green); color: var(--green); }
+  .phase-chip.passed .step { color: var(--green); }
+  .phase-chip.failed { border-color: var(--red); color: var(--red); }
+  .phase-chip.failed .step { color: var(--red); }
+  .phase-chip.not_started { color: var(--border); }
+  .phase-chip .arrow { color: var(--border); margin-left: 6px; }
+  .phase-note { color: var(--border); font-size: 11px; margin-bottom: 10px; }
+
+  .agents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .agent-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 160px;
+  }
+  .agent-card.stalled { border-color: var(--red); }
+  .agent-card .agent-name { color: var(--blue); font-weight: bold; }
+  .agent-card .agent-rd { color: var(--text); }
+  .agent-card .agent-meta { color: var(--dim); }
+
+  /* ---------- RD list table ---------- */
+  .rd-table-wrap { overflow-x: auto; margin-bottom: 6px; }
+  table.rd-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.rd-table th, table.rd-table td {
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  table.rd-table th { background: var(--panel); color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: 0.03em; }
+  table.rd-table td.rd-id-cell { color: var(--blue); font-weight: bold; white-space: nowrap; }
+  table.rd-table td.rd-summary-cell { color: var(--text); }
+  table.rd-table tr:hover td { background: var(--panel2); }
+  table.rd-table thead tr.rd-filter-row th {
+    background: var(--panel2);
+    padding: 4px 8px;
+    text-transform: none;
+  }
+  table.rd-table thead tr.rd-filter-row select {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    width: 100%;
+  }
+  .rd-state {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  .rd-state-ready, .rd-state-claimed { border-color: var(--blue); color: var(--blue); }
+  .rd-state-red, .rd-state-rejected, .rd-state-blocked_hardstop { border-color: var(--red); color: var(--red); }
+  .rd-state-green, .rd-state-accepted { border-color: var(--green); color: var(--green); }
+  .rd-state-ai_review, .rd-state-sec_review, .rd-state-human_review, .rd-state-stale { border-color: var(--amber); color: var(--amber); }
+  .rd-state-draft, .rd-state-blocked_dep { color: var(--dim); }
+  .rd-state-withdrawn, .rd-state-superseded { color: var(--border); text-decoration: line-through; }
+  .rd-pager {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--dim);
+    font-size: 11px;
+    margin-bottom: 14px;
+  }
+  .rd-pager button {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .rd-pager button:disabled { color: var(--border); cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-row">
+    <span>CZ-Harness &middot; <strong id="hdr-project">&mdash;</strong> &middot; <span id="hdr-wave"></span> &mdash; profile: <strong id="hdr-profile">&mdash;</strong> &middot; in flight <strong id="hdr-inflight">&mdash;</strong></span>
+    <span id="hdr-time">&mdash;</span>
+  </div>
+  <div class="alerts" id="alerts-row">&mdash;</div>
+  <div class="counts" id="counts-row">&mdash;</div>
+  <div class="cost-line" id="cost-row">&mdash;</div>
+</div>
+
+<div class="tabbar">
+  <button class="tab-btn active" data-tab="workflow">Workflow</button>
+  <button class="tab-btn" data-tab="live">Live board</button>
+</div>
+
+<!-- ================= WORKFLOW TAB ================= -->
+<div class="tab-panel active" id="tab-workflow">
+
+  <div class="wf-search">
+    <input id="wf-highlight" type="text" placeholder="highlight an agent (e.g. dev, sec-reviewer, sub-pm)&hellip;">
+  </div>
+
+  <div class="wf-legend">
+    <span><span class="swatch" style="background:var(--panel2);border:1px solid var(--border)"></span>step</span>
+    <span><span class="swatch" style="background:transparent;border:1px dashed var(--purple)"></span>agent spawn (Task dispatch)</span>
+    <span><span class="swatch" style="background:transparent;border:1px solid var(--amber)"></span>gate / decision</span>
+    <span><span class="swatch" style="background:transparent;border:1px solid var(--green)"></span>terminal &ndash; success</span>
+    <span><span class="swatch" style="background:transparent;border:1px solid var(--red)"></span>terminal &ndash; kill / reject</span>
+    <span style="color:var(--red)">&#8630; loop-back edge</span>
+    <span><span class="swatch" style="background:transparent;border:2px dashed var(--red)"></span>boxed = loops (repeats per RD)</span>
+  </div>
+
+  <!-- Single vertical chain: phases 0-6 run once, top to bottom -->
+  <div class="wf-lane">
+    <span class="wf-once-badge">runs once per project</span>
+    <div class="wf-row" id="wf-top"></div>
+  </div>
+
+  <!-- The phase 7-9 loop, visually boxed: repeats once per RD, up to max_in_flight concurrently -->
+  <div class="wf-lane" style="display:flex; justify-content:center;">
+    <div class="wf-loopbox">
+      <span class="wf-loopbox-badge">&#8635; loops &middot; once per RD, up to max_in_flight concurrent</span>
+
+      <div class="wf-sub-label">phase 7 &middot; DoR</div>
+      <div class="wf-row" id="wf-dor"></div>
+
+      <div class="wf-sub">
+        <div class="wf-sub-label">phase 8 &middot; Build (red&rarr;green&rarr;refactor loop, cz-build)</div>
+        <div class="wf-row" id="wf-build"></div>
+        <div class="wf-note">dev is never given tests/** contents. A green run must be byte-identical in test source to its red run, or the loop restarts from test-designer.</div>
+      </div>
+
+      <div class="wf-sub">
+        <div class="wf-sub-label">phase 9 &middot; Gate (fixed order: AI &rarr; security if flagged &rarr; human if configured)</div>
+        <div class="wf-row" id="wf-gate"></div>
+        <div class="wf-branch" style="margin-top:8px;">
+          <div class="wf-row" id="wf-gate-sec"></div>
+          <div class="wf-branch-row" id="wf-gate-decision"></div>
+        </div>
+      </div>
+
+      <div class="wf-loop-back">
+        &#8630; rejected / red &rarr; loops back to Build (8.1), never straight to a gate retry.<br>
+        &#8635; accepted &rarr; sub-pm claims the next eligible RD &rarr; this whole box runs again.
+      </div>
+    </div>
+  </div>
+
+  <!-- After the loop drains: phase 10, once per wave -->
+  <div class="wf-lane">
+    <span class="wf-once-badge">runs once &middot; after all RDs in the wave are accepted</span>
+    <div class="wf-row" id="wf-bottom"></div>
+  </div>
+
+  <!-- Phase overview table -->
+  <div class="wf-table-wrap">
+    <table class="wf-table">
+      <thead>
+        <tr><th>Phase</th><th>Name</th><th>Agent(s)</th><th>Command</th><th>Runs</th></tr>
+      </thead>
+      <tbody id="wf-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ================= LIVE BOARD TAB ================= -->
+<div class="tab-panel" id="tab-live">
+
+  <div class="wf-search">
+    <input id="rd-filter" type="text" placeholder="filter RDs by id&hellip;">
+  </div>
+
+  <div class="section-label">project workflow (phases 0&ndash;6, 10 &middot; per-RD phases 7&ndash;9 are the board below)</div>
+  <div class="phases" id="phases-row"></div>
+  <div class="phase-note" id="phase-note"></div>
+
+  <div class="section-label">RDs &middot; full list &amp; current status</div>
+  <div class="rd-table-wrap">
+    <table class="rd-table">
+      <thead>
+        <tr><th>RD</th><th>Module</th><th>State</th><th>Agent</th><th>Time in state</th><th>Summary</th></tr>
+        <tr class="rd-filter-row">
+          <th></th>
+          <th><select id="rd-module-filter"><option value="">all modules</option></select></th>
+          <th><select id="rd-state-filter"><option value="">all states</option></select></th>
+          <th></th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="rd-table-body"></tbody>
+    </table>
+  </div>
+  <div class="rd-pager">
+    <button id="rd-prev">&lsaquo; prev</button>
+    <span id="rd-page-info">&mdash;</span>
+    <button id="rd-next">next &rsaquo;</button>
+  </div>
+
+  <div class="section-label">agents &middot; what&rsquo;s working on which RD</div>
+  <div class="agents" id="agents-panel"></div>
+
+  <div class="board" id="board-columns">
+    <div class="col"><div class="col-head">ready (<span data-count="ready">0</span>)</div><div class="col-body" data-col="ready"></div></div>
+    <div class="col"><div class="col-head">claimed (<span data-count="claimed">0</span>)</div><div class="col-body" data-col="claimed"></div></div>
+    <div class="col"><div class="col-head">red (<span data-count="red">0</span>)</div><div class="col-body" data-col="red"></div></div>
+    <div class="col"><div class="col-head">green (<span data-count="green">0</span>)</div><div class="col-body" data-col="green"></div></div>
+    <div class="col"><div class="col-head">in review (<span data-count="in_review">0</span>)</div><div class="col-body" data-col="in_review"></div></div>
+    <div class="col"><div class="col-head">accepted (<span data-count="accepted">0</span>)</div><div class="col-body" data-col="accepted"></div></div>
+  </div>
+
+  <div class="strip" id="strip-rows"></div>
+</div>
+
+<div class="footer" id="footer-note">
+  Reads ../state/board.json &middot; self-refresh ~3s &middot; stalls computed here, not written by any hook (plan &sect;7.1) &middot; rebuild via /cz:rebuild-state &middot; workflow tab + agent-spawn highlighting + paginated RD table + RD filter
+</div>
+
+<script>
+const STALL_THRESHOLD_S = 180;      // default; overridden if board.json.concurrency.stall_threshold_s present
+const REFRESH_MS = 3000;
+const BOARD_URL = "../state/board.json";
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+/* ---------------- workflow diagram data ---------------- */
+function node(step, label, agent, opts) {
+  opts = opts || {};
+  const cls = ["wf-node"];
+  if (opts.spawn) cls.push("spawn");
+  if (opts.gate) cls.push("gate");
+  if (opts.good) cls.push("terminal-good");
+  if (opts.bad) cls.push("terminal-bad");
+  const el = document.createElement("div");
+  el.className = cls.join(" ");
+  el.dataset.agent = agent || "";
+  el.innerHTML = `<div class="step">${step ? step + " &middot; " : ""}${label}</div>` +
+    (agent ? `<div class="agent">${opts.spawn ? "&#9889; spawn: " : "agent: "}${agent}</div>` : "");
+  return el;
+}
+function arrow(text) {
+  const el = document.createElement("div");
+  el.className = "wf-arrow" + (text ? " loop" : "");
+  el.innerHTML = text || "&darr;";
+  return el;
+}
+function fillRow(id, items) {
+  const row = document.getElementById(id);
+  items.forEach((it, i) => {
+    row.appendChild(it);
+  });
+}
+
+/* -------- single vertical chain, top: phases 0-6, run once -------- */
+fillRow("wf-top", [
+  node("0", "Scope", "ba"), arrow(),
+  node("1", "Spec", "ba"), arrow(),
+  node("2", "Modulemap", "sa"), arrow(),
+  node("3", "Arch", "sa"), arrow(),
+  node("4", "WBS", "planner"), arrow(),
+  node("5", "Estimate", "planner"), arrow(),
+  node("6", "Risk", "risk-gov", {gate:true}), arrow(),
+  node("", "Decompose wave into RDs", "sub-pm"), arrow(),
+  node("", "Claim next eligible RD<br>(respects max_in_flight + hazard-serial rule)", "sub-pm"), arrow("&#9889; dispatch into the phase 7&ndash;9 loop &darr;"),
+]);
+
+/* -------- inside the loop box: phases 7-9, repeat per RD -------- */
+fillRow("wf-dor", [
+  node("7", "DoR check<br>(6 validity rules + testability)", "test-designer", {spawn:true}), arrow(),
+  node("", "pass?", "sub-pm", {gate:true}),
+]);
+
+fillRow("wf-build", [
+  node("8.1", "Claim lock", "cz-build"), arrow(),
+  node("8.2", "Write red tests", "test-designer", {spawn:true}), arrow(),
+  node("8.3", "Run tests<br>(must fail)", "cz-build"), arrow(),
+  node("8.4", "Implement to pass AC<br>(no test-file access)", "dev", {spawn:true}), arrow(),
+  node("8.5", "Run tests<br>(must pass, byte-identical)", "cz-build"), arrow(),
+  node("8.6", "Refactor (optional, self-loop)", "dev", {spawn:true}), arrow(),
+  node("8.7", "Write DEVBOOK &rarr; hand off", "cz-build"),
+]);
+
+fillRow("wf-gate", [
+  node("9.1", "Claim / restamp lock", "ai-reviewer"), arrow(),
+  node("9.2", "AI review<br>(AC coverage, scope, RD annotation)", "ai-reviewer", {spawn:true}), arrow(),
+  node("", "hazard=high<br>or leash=A ?", "sub-pm", {gate:true}),
+]);
+fillRow("wf-gate-sec", [
+  node("9.3", "Security review<br>(injection, secrets, auth bypass)<br><em>if flagged, else skip</em>", "sec-reviewer", {spawn:true, gate:false}),
+]);
+fillRow("wf-gate-decision", [
+  node("9.4", "human_gates.gate?<br>(human approval if true)", "human", {gate:true}),
+  arrow(),
+]);
+/* terminal branch: accepted vs rejected, side by side */
+(function () {
+  const branchRow = document.createElement("div");
+  branchRow.className = "wf-branch-row";
+  branchRow.appendChild(node("9.5a", "accepted", "", {good:true}));
+  branchRow.appendChild(node("9.5b", "red (retry build)", "", {bad:true}));
+  document.getElementById("wf-gate-decision").parentElement.appendChild(branchRow);
+})();
+
+/* -------- bottom: phase 10, run once, after the loop drains -------- */
+fillRow("wf-bottom", [
+  node("10", "Roll up telemetry &rarr; RTM / WEEKLY / CASE-STUDY", "agentops", {spawn:true, good:true}),
+]);
+
+/* -------- phase overview table -------- */
+const PHASE_OVERVIEW = [
+  { phase: "0",  name: "Scope",                              agents: "ba",                                   cmd: "/cz:scope",   runs: "once", runsLabel: "Once per project" },
+  { phase: "1",  name: "Spec",                                agents: "ba",                                   cmd: "/cz:spec",    runs: "once", runsLabel: "Once per project" },
+  { phase: "2",  name: "Modulemap",                           agents: "sa",                                   cmd: "/cz:modulemap", runs: "once", runsLabel: "Once per project" },
+  { phase: "3",  name: "Arch",                                agents: "sa",                                   cmd: "/cz:arch",    runs: "once", runsLabel: "Once per project" },
+  { phase: "4",  name: "WBS",                                 agents: "planner",                              cmd: "/cz:wbs",     runs: "once", runsLabel: "Once per project" },
+  { phase: "5",  name: "Estimate",                            agents: "planner",                              cmd: "/cz:estimate", runs: "once", runsLabel: "Once per project" },
+  { phase: "6",  name: "Risk (gate)",                         agents: "risk-gov",                             cmd: "/cz:risk",    runs: "once", runsLabel: "Once per project" },
+  { phase: "&mdash;", name: "Decompose &amp; schedule RDs",   agents: "sub-pm",                                cmd: "/cz:rd",      runs: "once", runsLabel: "Once per wave, then continuous scheduling" },
+  { phase: "7",  name: "DoR",                                 agents: "test-designer, sub-pm",                cmd: "/cz:dor",     runs: "loop", runsLabel: "Loops &mdash; once per RD" },
+  { phase: "8",  name: "Build (red&rarr;green&rarr;refactor)", agents: "test-designer, dev, cz-build",        cmd: "/cz:build",   runs: "loop", runsLabel: "Loops &mdash; per RD, can retry" },
+  { phase: "9",  name: "Gate (AI &rarr; security &rarr; human)", agents: "ai-reviewer, sec-reviewer, human",  cmd: "/cz:gate",    runs: "loop", runsLabel: "Loops &mdash; per RD, can send back to Build" },
+  { phase: "10", name: "Report",                              agents: "agentops",                             cmd: "/cz:report",  runs: "once", runsLabel: "Once, after all RDs in the wave are accepted" },
+];
+const tbody = document.getElementById("wf-table-body");
+PHASE_OVERVIEW.forEach(p => {
+  const tr = document.createElement("tr");
+  if (p.runs === "loop") tr.className = "loop-row";
+  tr.innerHTML =
+    `<td>${p.phase}</td>` +
+    `<td>${p.name}</td>` +
+    `<td>${p.agents}</td>` +
+    `<td><code>${p.cmd}</code></td>` +
+    `<td class="${p.runs === 'loop' ? 'runs-loop' : 'runs-once'}">${p.runs === 'loop' ? '&#8635; ' : '&#10003; '}${p.runsLabel}</td>`;
+  tbody.appendChild(tr);
+});
+
+/* highlight-by-agent */
+document.getElementById("wf-highlight").addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll(".wf-node").forEach(n => {
+    n.classList.remove("dim-match", "dim-fade");
+    if (!q) return;
+    const a = (n.dataset.agent || "").toLowerCase();
+    n.classList.add(a.includes(q) ? "dim-match" : "dim-fade");
+  });
+});
+
+/* ---------------- live board (unchanged behavior from v1) ---------------- */
+function fmtAge(seconds) {
+  if (seconds == null) return "";
+  if (seconds < 60) return seconds + "s";
+  if (seconds < 3600) return Math.floor(seconds / 60) + "m";
+  return Math.floor(seconds / 3600) + "h" + Math.floor((seconds % 3600) / 60) + "m";
+}
+
+function stateToColumn(state) {
+  switch (state) {
+    case "ready": return "ready";
+    case "claimed": return "claimed";
+    case "red": return "red";
+    case "green": return "green";
+    case "ai_review": case "sec_review": case "human_review": return "in_review";
+    case "accepted": return "accepted";
+    default: return null;
+  }
+}
+
+function shortId(fullId) {
+  const m = fullId.match(/-(\d+\.\d+)$/);
+  return m ? m[1] : fullId;
+}
+
+function renderCard(rd, stalledAgents) {
+  const col = document.createElement("div");
+  col.className = "card";
+  col.dataset.id = rd.id.toLowerCase();
+  const agentInfo = rd.assigned_agent
+    ? `<div class="meta">${rd.assigned_agent}${stalledAgents.has(rd.assigned_agent) ? ' <span class="badge" style="color:#e05555;border-color:#e05555;">stalled</span>' : ''}</div>`
+    : "";
+  const cost = rd.cost_usd != null ? `<span class="badge">$${rd.cost_usd.toFixed(2)}</span>` : "";
+  const timeInState = rd.time_in_state_s != null ? `<span class="badge">${fmtAge(rd.time_in_state_s)}</span>` : "";
+  const redSkipped = rd.red_skipped ? `<span class="badge" style="color:#e0a030;border-color:#e0a030;">red_skipped</span>` : "";
+  // leash badge (plan §7.2: "Each card: RD ID, agent, time-in-state, leash
+  // badge, cost, stale flag" — M6): A+ (hazard / heavy-profile, full
+  // autonomy) is called out in red since it's the ceiling that triggers a
+  // mandatory security review at gate (commands/cz-gate.md step 2).
+  const leash = rd.leash
+    ? `<span class="badge" style="${rd.leash === 'A+' ? 'color:#e05555;border-color:#e05555;' : ''}">leash:${rd.leash}</span>`
+    : "";
+  if (rd.assigned_agent && stalledAgents.has(rd.assigned_agent)) col.classList.add("red");
+  col.innerHTML = `<div class="rd-id">${shortId(rd.id)}</div>${agentInfo}<div>${cost}${timeInState}${leash}${redSkipped}</div>`;
+  return col;
+}
+
+/* ---------------- RD list table (paginated) ---------------- */
+const RD_PAGE_SIZE = 12;
+let rdPage = 0;
+let rdFilterQuery = "";
+let rdModuleFilter = "";
+let rdStateFilter = "";
+let lastRds = [];
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function refreshRdFilterOptions(rds) {
+  const moduleSel = document.getElementById("rd-module-filter");
+  const stateSel = document.getElementById("rd-state-filter");
+  const modules = [...new Set(rds.map(r => r.module).filter(Boolean))].sort();
+  const states = [...new Set(rds.map(r => r.state).filter(Boolean))].sort();
+
+  const rebuild = (sel, values, currentValue, allLabel) => {
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">${allLabel}</option>` +
+      values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    sel.value = values.includes(prev) ? prev : "";
+  };
+  rebuild(moduleSel, modules, rdModuleFilter, "all modules");
+  rebuild(stateSel, states, rdStateFilter, "all states");
+}
+
+function renderRdTable(rds) {
+  refreshRdFilterOptions(rds);
+  const filtered = rds.filter(r =>
+    (!rdFilterQuery || r.id.toLowerCase().includes(rdFilterQuery)) &&
+    (!rdModuleFilter || r.module === rdModuleFilter) &&
+    (!rdStateFilter || r.state === rdStateFilter)
+  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / RD_PAGE_SIZE));
+  if (rdPage >= totalPages) rdPage = totalPages - 1;
+  if (rdPage < 0) rdPage = 0;
+  const start = rdPage * RD_PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + RD_PAGE_SIZE);
+
+  const tbody = document.getElementById("rd-table-body");
+  tbody.innerHTML = "";
+  pageItems.forEach(rd => {
+    const tr = document.createElement("tr");
+    const module = rd.module && rd.module !== "null" ? escapeHtml(rd.module) : "&mdash;";
+    const agent = rd.assigned_agent && rd.assigned_agent !== "null" ? escapeHtml(rd.assigned_agent) : "&mdash;";
+    const time = rd.time_in_state_s != null ? fmtAge(rd.time_in_state_s) : "&mdash;";
+    const summary = rd.summary && rd.summary !== "null" ? escapeHtml(rd.summary) : "&mdash;";
+    tr.innerHTML =
+      `<td class="rd-id-cell">${rd.id}</td>` +
+      `<td>${module}</td>` +
+      `<td><span class="rd-state rd-state-${rd.state}">${rd.state}</span></td>` +
+      `<td>${agent}</td>` +
+      `<td>${time}</td>` +
+      `<td class="rd-summary-cell">${summary}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (!pageItems.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">no RDs match</td></tr>';
+  }
+
+  document.getElementById("rd-page-info").textContent =
+    filtered.length ? `page ${rdPage + 1}/${totalPages} · ${filtered.length} RD(s)` : "0 RDs";
+  document.getElementById("rd-prev").disabled = rdPage <= 0;
+  document.getElementById("rd-next").disabled = rdPage >= totalPages - 1;
+}
+
+document.getElementById("rd-prev").addEventListener("click", () => {
+  rdPage--;
+  renderRdTable(lastRds);
+});
+document.getElementById("rd-next").addEventListener("click", () => {
+  rdPage++;
+  renderRdTable(lastRds);
+});
+
+document.getElementById("rd-filter").addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  rdFilterQuery = q;
+  rdPage = 0;
+  document.querySelectorAll(".card").forEach(c => {
+    c.classList.toggle("hidden", q && !c.dataset.id.includes(q));
+  });
+  renderRdTable(lastRds);
+});
+
+document.getElementById("rd-module-filter").addEventListener("change", (e) => {
+  rdModuleFilter = e.target.value;
+  rdPage = 0;
+  renderRdTable(lastRds);
+});
+
+document.getElementById("rd-state-filter").addEventListener("change", (e) => {
+  rdStateFilter = e.target.value;
+  rdPage = 0;
+  renderRdTable(lastRds);
+});
+
+async function refresh() {
+  let data;
+  try {
+    const res = await fetch(BOARD_URL, { cache: "no-store" });
+    data = await res.json();
+  } catch (e) {
+    document.getElementById("footer-note").textContent =
+      "Could not load " + BOARD_URL + " — run /cz:init or /cz:rebuild-state first. (" + e + ")";
+    return;
+  }
+
+  const stallThreshold = (data.concurrency && data.concurrency.stall_threshold_s) || STALL_THRESHOLD_S;
+  const nowMs = Date.now();
+
+  const stalledAgents = new Set();
+  const staleAgeByAgent = {};
+  (data.agents || []).forEach(a => {
+    const ageS = (nowMs - new Date(a.last_heartbeat).getTime()) / 1000;
+    staleAgeByAgent[a.agent] = ageS;
+    if (a.agent_state === "executing" && ageS > stallThreshold) stalledAgents.add(a.agent);
+  });
+
+  const agentsPanel = document.getElementById("agents-panel");
+  agentsPanel.innerHTML = "";
+  const agents = data.agents || [];
+  agents.forEach(a => {
+    const card = document.createElement("div");
+    const stalled = stalledAgents.has(a.agent);
+    card.className = "agent-card" + (stalled ? " stalled" : "");
+    const rdLine = a.rd
+      ? `<div class="agent-rd">${shortId(a.rd)}</div>`
+      : `<div class="agent-meta">idle — no RD assigned</div>`;
+    const stalledBadge = stalled ? '<span class="badge" style="color:#e05555;border-color:#e05555;">stalled</span>' : "";
+    card.innerHTML =
+      `<div class="agent-name">${a.agent}${stalledBadge}</div>${rdLine}` +
+      `<div class="agent-meta">${a.agent_state || "unknown"} &middot; last seen ${fmtAge(staleAgeByAgent[a.agent])} ago</div>`;
+    agentsPanel.appendChild(card);
+  });
+  if (!agents.length) agentsPanel.innerHTML = '<div class="empty">no active agents</div>';
+
+  document.getElementById("hdr-project").textContent = data.project || "—";
+  document.getElementById("hdr-wave").textContent = data.wave != null ? "Wave " + data.wave : "";
+  document.getElementById("hdr-profile").textContent = data.profile || "—";
+  const maxInFlight = (data.concurrency && data.concurrency.max_in_flight) || "—";
+  const curInFlight = (data.counts && data.counts.in_flight) || 0;
+  document.getElementById("hdr-inflight").textContent = curInFlight + "/" + maxInFlight;
+  document.getElementById("hdr-time").textContent = new Date(data.updated_at || Date.now()).toLocaleTimeString();
+
+  const phasesRow = document.getElementById("phases-row");
+  phasesRow.innerHTML = "";
+  const phases = data.phases || [];
+  phases.forEach((p, i) => {
+    const chip = document.createElement("span");
+    chip.className = "phase-chip " + (p.status || "not_started");
+    chip.title = p.artifact ? p.artifact : "no artifact yet";
+    chip.innerHTML = `<span class="step">${p.step}</span>${p.name}`;
+    phasesRow.appendChild(chip);
+    if (i < phases.length - 1) {
+      const arrowEl = document.createElement("span");
+      arrowEl.className = "arrow";
+      arrowEl.textContent = "→";
+      phasesRow.appendChild(arrowEl);
+    }
+  });
+  if (!phases.length) phasesRow.innerHTML = '<div class="empty">no phase data — run /cz:rebuild-state</div>';
+
+  lastRds = data.rds || [];
+  renderRdTable(lastRds);
+  document.getElementById("phase-note").textContent =
+    "Phases 7 (DoR), 8 (Build), 9 (Gate) run per-RD, not once per project — tracked in the RD board below, not here. Full pipeline shape (incl. agent spawns) is under the Workflow tab.";
+
+  const gatesWaiting = (data.rds || []).filter(r => ["ai_review", "sec_review", "human_review"].includes(r.state));
+  const hardStops = data.hard_stops || [];
+  const alertParts = [];
+  if (gatesWaiting.length) alertParts.push(`⚠ ${gatesWaiting.length} gate(s) awaiting YOU`);
+  if (hardStops.length) alertParts.push(`<span class="hardstop">⛔ ${hardStops.length} hard-stop(s)</span>`);
+  if (stalledAgents.size) alertParts.push(`<span class="stalled">⏱ ${stalledAgents.size} agent(s) stalled</span>`);
+  document.getElementById("alerts-row").innerHTML = alertParts.length ? alertParts.join("   ") : "no alerts — nothing waiting on you right now";
+
+  const c = data.counts || {};
+  const total = c.total != null ? c.total : Object.values(c).reduce((a, b) => a + (typeof b === "number" ? b : 0), 0);
+  document.getElementById("counts-row").textContent =
+    `${c.accepted||0} accepted · ${c.in_flight||0} in flight · ${c.in_review||0} in review · ${c.ready||0} ready · ` +
+    `${c.blocked_dep||0} blocked-dep · ${c.hard_stop||0} hard-stop · ${c.stale||0} stale · ${c.withdrawn||0} withdrawn · ${total} total`;
+
+  const cost = data.cost || {};
+  const riskClass = "risk-" + (cost.rubber_stamp_risk || "LOW");
+  document.getElementById("cost-row").innerHTML =
+    `$${(cost.usd_total||0).toFixed(2)} · ${cost.tokens_total||0} tok · human ${(cost.human_hours_total||0).toFixed(1)}h · ` +
+    `${cost.corrections_total||0} corrections · risk: <span class="${riskClass}">${cost.rubber_stamp_risk || "LOW"}</span>`;
+
+  document.querySelectorAll(".col-body").forEach(el => { el.innerHTML = ""; });
+  const colCounts = { ready: 0, claimed: 0, red: 0, green: 0, in_review: 0, accepted: 0 };
+  (data.rds || []).forEach(rd => {
+    const col = stateToColumn(rd.state);
+    if (!col) return;
+    colCounts[col]++;
+    const body = document.querySelector(`.col-body[data-col="${col}"]`);
+    body.appendChild(renderCard(rd, stalledAgents));
+  });
+  Object.keys(colCounts).forEach(k => {
+    const el = document.querySelector(`[data-count="${k}"]`);
+    if (el) el.textContent = colCounts[k];
+  });
+  document.querySelectorAll(".col-body").forEach(el => {
+    if (!el.children.length) el.innerHTML = '<div class="empty">—</div>';
+  });
+
+  const strip = document.getElementById("strip-rows");
+  strip.innerHTML = "";
+  hardStops.forEach(hs => {
+    const row = document.createElement("div");
+    row.className = "strip-row hardstop";
+    row.textContent = `⛔ ${hs.id} · ${hs.rd} · "${hs.reason}" · ${hs.owner || "you"}`;
+    strip.appendChild(row);
+  });
+  (data.rds || []).filter(r => r.state === "draft").forEach(rd => {
+    const row = document.createElement("div");
+    row.className = "strip-row draft";
+    row.textContent = `✎ draft  ${rd.id} · not yet committed via /cz:rd`;
+    strip.appendChild(row);
+  });
+  (data.rds || []).filter(r => r.state === "stale").forEach(rd => {
+    const row = document.createElement("div");
+    row.className = "strip-row stale";
+    row.textContent = `🔗 stale  ${rd.id} · writes frozen until tests re-derived`;
+    strip.appendChild(row);
+  });
+  (data.rds || []).filter(r => r.state === "blocked_dep").forEach(rd => {
+    const row = document.createElement("div");
+    row.className = "strip-row blocked";
+    row.textContent = `⏸ blocked-dep  ${rd.id}`;
+    strip.appendChild(row);
+  });
+  (data.rds || []).filter(r => r.state === "withdrawn").forEach(rd => {
+    const row = document.createElement("div");
+    row.className = "strip-row withdrawn";
+    row.textContent = `⊘ withdrawn  ${rd.id} (descoped, retained for audit trail)`;
+    strip.appendChild(row);
+  });
+  if (!strip.children.length) {
+    strip.innerHTML = '<div class="strip-row" style="color:#7c8b9c;">no draft / hard-stopped / stale / blocked-dep / withdrawn RDs</div>';
+  }
+
+  document.getElementById("footer-note").textContent =
+    `Reads ${BOARD_URL} · self-refresh ~3s · stalls computed here (threshold ${stallThreshold}s), not written by any hook · rebuild via /cz:rebuild-state · v2: workflow tab + agent-spawn highlighting + RD filter`;
+}
+
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+
+</body>
+</html>

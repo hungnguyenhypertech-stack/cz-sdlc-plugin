@@ -1,0 +1,34 @@
+# CZ-Harness model-gateway port. Define the interface now, wire OmniRoute later (plan §9).
+# Until wired: agentops reconciles cost from the coding tool's own usage data and marks
+# events cost_source: estimated. See docs/SECURITY-NOTES.md before enabling the omniroute adapter.
+
+gateway:
+  adapter: direct                # omniroute | direct | litellm — "direct" always works with no adapter wiring.
+  base_url: http://localhost:20128/v1   # only used when adapter: omniroute
+  cost_headers: "X-OmniRoute-*"          # only used when adapter: omniroute
+
+roles:
+  sub-pm:         { intent: reasoning,  tier: strong }
+  ba:             { intent: coding,     tier: strong }
+  sa:             { intent: reasoning,  tier: strong }
+  planner:        { intent: balanced,   tier: mid }
+  test-designer:  { intent: coding,     tier: strong }
+  dev:            { intent: coding,     tier: strong }
+  ai-reviewer:    { intent: reasoning,  tier: strong }   # never cheap out on the safety net
+  sec-reviewer:   { intent: reasoning,  tier: strong }
+  agentops:       { intent: extraction, tier: cheap }
+
+budgets:
+  per_rd_usd_soft: 1.50
+  per_wave_usd_hard: 60.00
+
+# Deliberate deviation from CASAN §10.2's generic cost-routing pattern (escalate to a stronger
+# model only after validation fails): reviewers stay strong from the start. A cheap reviewer
+# that misses a fake test costs more than it saves.
+
+wiring_caveats:
+  # See docs/SECURITY-NOTES.md for full detail. Do not flip adapter to omniroute without these:
+  - "Disable TLS fingerprint stealth (JA3/JA4) and transparent MITM decryption — will fail an FPT security review on sight."
+  - "Approved-provider allow-list only; OmniRoute's own README flags providers as ToS-flagged — do not use ToS-flagged tiers."
+  - "Subscription/coding-plan providers report $0 in OmniRoute analytics — separate metered spend from subscription-covered usage before trusting the ROI numbers."
+  - "Pin a specific OmniRoute commit before wiring; none of the above has been verified against a running instance (README-sourced only, read 2026-07-27, repo v3.8.49)."

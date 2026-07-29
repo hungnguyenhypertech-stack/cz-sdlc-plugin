@@ -1,0 +1,16 @@
+# Standalone mirror of config/gates.yaml:hazard_paths, kept as its own file so
+# hooks/detect-hazard.sh can glob against it without parsing the whole gates.yaml.
+# The two files must agree — /cz:audit checks that.
+
+hazard_paths:
+  - "**/auth/**"
+  - "**/permissions/**"
+  - "**/migrations/**"
+  - "**/*secret*"
+  - "**/payment/**"
+  - "**/pii/**"
+  - ".github/workflows/**"
+
+behavior:
+  on_match: "escalate the touching RD's effective profile to heavy for this change; write a hazard_escalation telemetry event; the escalation is permanent on that RD's record even if the diff is later reverted"
+  overridable: false

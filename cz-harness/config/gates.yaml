@@ -1,0 +1,94 @@
+# CZ-Harness gate & profile config — per-project, copied into the project repo by /cz:init
+# See docs/LIGHTWEIGHT-MODE.md and plan §8.4 for the full profile comparison table.
+
+profile: standard              # light | standard | heavy — the ONLY knob that can lower a gate,
+                                # and only for non-hazard work (see hazard_paths below).
+
+delegation_ceiling: L3         # never above L4; L4 only under profile: heavy.
+                                # L5 is never granted (CZ-Harness policy, not a CASAN one — docs/CASAN-MAPPING.md).
+
+module_overrides:               # per-module escalation/de-escalation of the base profile.
+  # <module-name-from-MODULEMAP>: light | standard | heavy
+  # Example (nightly-refresh / source-reconciliation project):
+  # reconciliation: heavy       # hazard module (revenue-figure integrity), forced up
+  # notifications: light
+  #
+  # Inert by design: this is a fresh project template with no real MODULEMAP yet,
+  # so there are no real module names to override. Uncomment and replace with actual
+  # module names from your project's MODULEMAP once one exists — do not treat the
+  # commented-out state itself as a bug.
+
+concurrency:
+  mode: bounded                 # serial | bounded | wave
+  max_in_flight: 3              # bounded mode; also the hard ceiling in wave mode
+  wave_ceiling: 8                # wave mode absolute cap
+  hazard_mode: serial            # NOT overridable — hazard RDs always drain to solo execution
+  stall_threshold_s: 180         # no heartbeat for this long while agent_state=executing => derived "stalled"
+
+# Profile defaults for concurrency.mode (informational; module_overrides / concurrency above still wins):
+#   light    -> bounded: 2
+#   standard -> bounded: 3
+#   heavy    -> serial
+
+hazard_paths:                    # any diff touching these auto-escalates the RD to heavy, regardless of
+  - "**/auth/**"                 # declared module or profile. Inspected against the actual diff, not the
+  - "**/permissions/**"          # declared module — see hooks/detect-hazard.sh.
+  - "**/migrations/**"
+  - "**/*secret*"
+  - "**/payment/**"
+  - "**/pii/**"
+  - ".github/workflows/**"
+
+budgets:
+  per_rd_usd_soft: 1.50          # board flags an RD over soft budget (amber), does not block
+  per_wave_usd_hard: 60.00       # scheduler stops claiming NEW RDs at the hard limit (existing work finishes)
+
+human_gates:                     # per-phase toggle: does this phase's Gate step block on a human
+                                  # sign-off, or auto-approve once its AI (+security, if triggered)
+                                  # checks pass? Read directly by each commands/cz-*.md at its Gate
+                                  # step — this is the ONLY place that decision is made; no command
+                                  # hardcodes it. Every key defaults to the value shown below when
+                                  # absent, so an incomplete block is filled in as "gate stays on."
+  scope:      true                # Phase 0  — /cz:scope.       Committing this to false removes the
+                                   #            project's last unconditional human checkpoint; there is
+                                   #            no floor under this file once it's flipped.
+  spec:       false                # Phase 1  — /cz:spec
+  modulemap:  false                # Phase 2  — /cz:modulemap
+  arch:       false                # Phase 3  — /cz:arch
+  wbs:        false                # Phase 4  — /cz:wbs
+  estimate:   false                # Phase 5  — /cz:estimate
+  risk:       false                # Phase 6  — /cz:risk
+  rd_commit:  true                 # RD decomposition/commit — /cz:rd (not a numbered phase).
+                                   # Defaults true (unlike every other key here): plan §4.1 states a
+                                   # split is "proposed by agents and committed by the human" as a hard
+                                   # rule, not a configurable gate — an agent silently auto-committing a
+                                   # split (or a redefinition of the work) escapes the delegation map.
+                                   # Flip to false only for a deliberate, logged unattended mode; see
+                                   # cz-rd.md step 5.
+  dor:        false                # Phase 7  — /cz:dor (per RD)
+  gate:       false                # Phase 9  — /cz:gate (per RD; final pre-merge review)
+  report:     false                # Phase 10 — /cz:report
+
+# ---------------------------------------------------------------------------
+# Gate element x profile matrix (informational mirror of plan §8.4 — the
+# authoritative enforcement lives in the hooks + gate command, not here):
+#
+#   Red proof before code : light=layer1-skippable(red_skipped:true) | standard=every RD | heavy=every RD + AC-coverage threshold
+#   AI review             : light=1 pass short checklist | standard=1 pass full checklist | heavy=2 passes + adversarial + 2nd model
+#   Security review       : light=skipped | standard=on hazard-path touch | heavy=always
+#   Human approval         : per-phase, set by human_gates below (default: scope=true, everything else
+#                            =false). Not tied to profile — light/standard/heavy only change AI/security
+#                            depth; human_gates is the sole switch for whether a human signs off at all.
+#   Traceability            : light=RTM optional, orphans warn | standard=RTM required, orphans block report | heavy=bidirectional + zero stale TCs
+#   Delegation ceiling      : light=L3/leash A | standard=L3/leash A | heavy=L4/leash A+, per-action approval
+#   Dev Book entry          : light=per RD | standard=per RD + >=1 correction | heavy=per RD + correction + root cause
+# ---------------------------------------------------------------------------
+
+one_way_ratchet:
+  # Config may only LOWER gates for non-hazard work. These invariants cannot be overridden by any profile:
+  - "hazard: true RDs always run serial, drained to zero in-flight before claim"
+  - "delegation_ceiling never exceeds L4; L4 exists only under profile: heavy"
+  - "risk-gov may PROPOSE a profile change; only a human commits it, and the commit is itself an audited governance event"
+  - "a diff touching hazard_paths escalates to heavy for that change even if its module is light or standard"
+  - "AI review and, where triggered, security review always run and are always recorded in every gate-records/*.json, regardless of any human_gates setting — human_gates only controls the approval step downstream of them"
+  - "human_gates is read fresh by each command at its own Gate step; a mid-project edit takes effect on the next phase run, it does not retroactively reopen an already-passed gate-records/*.json"

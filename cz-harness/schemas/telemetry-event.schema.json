@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cz-harness/schemas/telemetry-event.schema.json",
+  "title": "Telemetry event (one line of telemetry/events.jsonl)",
+  "description": "Append-only. Every event carries rd — the join key for traceability, per-RD costing, and the live board (plan §10).",
+  "type": "object",
+  "required": ["ts", "run_id", "rd", "event", "agent"],
+  "additionalProperties": true,
+  "properties": {
+    "ts": { "type": "string", "format": "date-time" },
+    "run_id": { "type": "string" },
+    "rd": {
+      "description": "Join key for traceability/costing/board. Real string ids MUST match the pattern below. A large, legitimate class of events has no RD at all: project-level phase work (phases 0-6, 10 — ba/sa/planner/risk-gov/agentops never hold an rd/*.md claim lock, so there is nothing to resolve), and any tool call whose text carries no RD id while zero or >1 locks are held (genuinely ambiguous — see hooks/lib/common.sh's 'Identity fallback' section). JSON `null` (not the string \"null\") is the deliberate, schema-legal way to represent 'no RD context at emission time' — emitters must never coerce this into a fake pattern-matching placeholder just to satisfy this field.",
+      "type": ["string", "null"],
+      "pattern": "^RD-[A-Za-z0-9]+-[0-9]+\\.[0-9]+$"
+    },
+    "rd_version": { "type": "integer" },
+    "rd_hash": { "type": "string" },
+    "wbs": { "type": "string" },
+    "phase": { "type": ["integer", "null"] },
+    "agent": {
+      "description": "\"unknown\" is deliberate, not a bug: it is the honest value when a hook's best-effort identity resolution (env var -> per-RD lock -> sole active lock -> RD frontmatter's assigned_agent) genuinely cannot determine who is acting — e.g. no RD is claimed at all (phase-level work), or more than one RD is claimed and this tool call's text names none of them. See hooks/emit-telemetry.sh and hooks/lib/common.sh's 'Identity fallback' section.",
+      "type": "string",
+      "enum": ["sub-pm", "ba", "sa", "planner", "risk-gov", "test-designer", "dev", "ai-reviewer", "sec-reviewer", "agentops", "human", "unknown"]
+    },
+    "agent_state": { "type": "string", "enum": ["idle", "claimed", "planning", "executing", "awaiting_gate", "blocked", "failed"] },
+    "rd_state": { "type": "string" },
+    "event": {
+      "description": "test_red/test_green: cz-build.md's red/green proof beats (distinct from generic test_run — these are the only reliable signal that a build loop actually reached red or green for a given content_hash). gate_rejected: cz-gate.md's explicit rejection marker (distinct from a routine lock_restamped handoff, which reads identically to a normal role handoff — see cz-gate.md step 8). lock_restamped: restamp-lock.sh's mid-claim identity relabel (test-designer -> dev -> cz-build within one held lock; distinct from rd_claim/rd_release which start/end the claim itself). agent_heartbeat: emit-telemetry.sh's heartbeat-file write, but only logged to telemetry on a REAL transition (this agent moved onto a different RD, or this is its first heartbeat) — logging every tick would flood the log.",
+      "type": "string",
+      "enum": ["agent_dispatch", "agent_heartbeat", "agent_error", "rd_claim", "rd_release", "rd_state_change", "rd_changed", "rd_reopened", "test_run", "test_red", "test_green", "gate_decision", "gate_rejected", "human_approval", "correction", "hardstop", "hazard_escalation", "delegation_grant", "lock_restamped", "red_skipped", "lock_reclaimed", "budget_warning"]
+    },
+    "result": { "type": ["string", "null"] },
+    "error_type": {
+      "type": ["string", "null"],
+      "enum": [null, "tool_error", "test_harness_error", "context_exhausted", "retry_exhausted", "hallucinated_reference", "permission_denied", "contradiction"]
+    },
+    "model": { "type": ["string", "null"] },
+    "tier": { "type": ["string", "null"], "enum": [null, "strong", "mid", "cheap"] },
+    "tokens_in": { "type": ["integer", "null"] },
+    "tokens_out": { "type": ["integer", "null"] },
+    "cost_usd": { "type": ["number", "null"] },
+    "cost_source": { "type": ["string", "null"], "enum": [null, "gateway", "estimated", "subscription"] },
+    "duration_ms": { "type": ["integer", "null"] },
+    "leash": { "type": ["string", "null"], "enum": [null, "A", "A+"] },
+    "delegation_level": { "type": ["string", "null"], "enum": [null, "L0", "L1", "L2", "L3", "L4"] },
+    "human_minutes": { "type": ["number", "null"] },
+    "correction_id": { "type": ["string", "null"] },
+    "gate": { "type": ["string", "null"] },
+    "gate_result": { "type": ["string", "null"], "enum": [null, "pass", "fail"] }
+  }
+}

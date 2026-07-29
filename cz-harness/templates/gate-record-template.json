@@ -1,0 +1,53 @@
+{
+  "_comment_purpose": "TEMPLATE: gate-record-template.json — one immutable record of a single gate decision (ai_review, sec_review, or human_review) applied to one RD. Copy this file per gate event as gate-records/<gate_id>.json. Audit finding N5 (2026-07-29): this shape is aspirational — no command in commands/ currently writes gate-records/*.json this way. Real practice (confirmed against production gate-records/*.json) uses three simpler shapes instead: flat phase-level records (PB<n>-*.json), flat RD-level DOR records (RD-*-dor.json), and a differently-shaped nested RD-level gate record (RD-*-gate.json, per /cz:gate step 7) with fields rd_id/cycle/order_enforced/ai_review/security_review/gate_decision — none of which use gate_id/rd/gate_type/ts. schemas/gate-record.schema.json was reconciled to describe those three real shapes rather than this one; this template's shape was left as-is (not deleted) as a reference for a possible future single-gate-per-file redesign, but do not treat it as what /cz:gate actually produces today — see /cz:gate step 7 and gate-records/RD-*-gate.json for the real shape.",
+
+  "gate_id": "GATE-RD-PB0X-012.03-02",
+  "_comment_gate_id": "Format: GATE-<rd-id>-<nn> where <nn> is a zero-padded sequence number, incrementing per RD across ALL gate events on that RD (ai_review, sec_review, human_review share one sequence). e.g. the 2nd gate event ever recorded on RD-PB0X-012.03 is GATE-RD-PB0X-012.03-02.",
+
+  "rd": "RD-PB0X-012.03",
+  "_comment_rd": "The RD id (bare, no @version — the gate applies to whichever version was current at gate time; see rd_version_at_gate below).",
+
+  "rd_version_at_gate": 3,
+  "_comment_rd_version_at_gate": "The RD's version number at the moment this gate ran, so the record stays meaningful even if the RD is later re-versioned.",
+
+  "gate_type": "sec_review",
+  "_comment_gate_type": "One of: ai_review | sec_review | human_review",
+
+  "verdict": "fail",
+  "_comment_verdict": "One of: pass | fail",
+
+  "reviewer": "sec-reviewer",
+  "_comment_reviewer": "Agent id for ai_review/sec_review, or a human name/email for human_review.",
+
+  "checklist_results": [
+    {
+      "item": "No non-atomic read-modify-write on shared reconciliation state",
+      "result": "fail",
+      "note": "Nightly refresh reads last-reconciled figures then writes new ones in two separate steps with no lock — a concurrent retry can interleave and produce partial revenue, which is exactly what AC-PB0X-012.03-1 forbids."
+    },
+    {
+      "item": "Input validation rejects malformed rows before write",
+      "result": "pass",
+      "note": ""
+    },
+    {
+      "item": "REPLACE_ME - next checklist item",
+      "result": "pass",
+      "note": "REPLACE_ME"
+    }
+  ],
+  "_comment_checklist_results": "verdict above should be 'fail' if ANY item here is 'fail' unless explicitly waived — record the waiver in note.",
+
+  "human_approved": false,
+  "_comment_human_approved": "MUST be settable ONLY by an actual human — hooks/guard-role-boundaries.sh blocks any agent-authored write of true to this field, regardless of gate_type or verdict.",
+
+  "understanding_gate_answered": false,
+  "_comment_understanding_gate_answered": "True only once the Understanding Gate question below has a human-authored answer logged in deliverables/understanding-log/rd/<rd-id>.md (or the relevant phase fragment under deliverables/understanding-log/ for a phase-level gate) BEFORE this gate can reach verdict: pass at the human_review step.",
+
+  "understanding_gate_question": "REPLACE_ME - the question the human must answer to close this gate, e.g. \"Why does atomic write-or-nothing matter here more than in a low-traffic admin screen?\"",
+  "understanding_gate_answer": null,
+  "_comment_understanding_gate_answer": "Must be human-authored, not AI-generated. null until answered.",
+
+  "ts": "2026-07-27T14:32:00Z",
+  "_comment_ts": "ISO8601 UTC timestamp of when this gate decision was recorded."
+}

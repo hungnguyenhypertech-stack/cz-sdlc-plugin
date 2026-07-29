@@ -1,0 +1,19 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Per-project runtime that a consuming project creates via /cz:init —
+# never belongs in this marketplace/plugin repo itself (see cz-harness's
+# own audit history, finding C5: this exact class of file was once
+# accidentally shipped inside the plugin package).
+**/state/
+**/telemetry/
+**/rd/
+**/evidence/
+**/gate-records/
+**/deliverables/reviews/

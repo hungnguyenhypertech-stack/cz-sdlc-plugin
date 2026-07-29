@@ -1,0 +1,119 @@
+# =============================================================================
+# TEMPLATE: rd-template.yaml
+# One "Requirement Detail" (RD) — the atomic unit of delivered work in
+# cz-harness. Copy this file per RD as rd/<id>.md (NOT rd/<id>.yaml — RDs are
+# looked up by hooks/lib/common.sh's cz_rd_path() as Markdown files; a bare
+# .yaml file at that path is silently invisible to every guard hook) and
+# fill in every field. The content below needs no --- frontmatter fences to
+# work — cz_rd_fm() falls back to reading the whole file when none are
+# present — but the extension must be .md.
+# Field names below are authoritative and MUST match schemas/rd.schema.json
+# exactly — this template is a filled-in instance would validate against
+# that schema (comments are the only non-schema content).
+#
+# Worked from the plan's own §4.2 example (nightly-refresh / source-
+# reconciliation scenario), kept verbatim so this template and RD-GUIDE.md's
+# worked examples stay in sync. Replace with your own RD's content, keeping
+# every field name identical.
+# =============================================================================
+
+# --- Identity ----------------------------------------------------------------
+id: RD-PB0X-012.03           # Format: RD-<proj>-<nnn>.<mm> — <nnn> ties back to
+                              # parent_req's REQ-<proj>-<nnn>; <mm> is this RD's
+                              # ordinal within that requirement. IMMUTABLE, never
+                              # reused (see docs/TRACEABILITY.md).
+version: 3                    # Bumped whenever content_hash changes.
+
+content_hash: "sha256:REPLACE_ME"
+                              # system-managed. Computed over ONLY statement +
+                              # ac[] + nfr_refs (in that order, canonicalized) —
+                              # NOT estimate, state, assigned_agent, or anything
+                              # else. Editing those does not invalidate tests;
+                              # editing an AC does (docs/TRACEABILITY.md freeze rule).
+
+# --- Traceability --------------------------------------------------------------
+parent_req: REQ-PB0X-012      # Must reference a real REQ id in SPEC-PB0X.md.
+wbs: WBS-PB0X-3.2.1            # Must reference a real leaf in WBS-PB0X.md. Many
+                              # RDs may share one WBS leaf.
+module: reconciliation        # Must reference exactly one module in MODULEMAP-PB0X.md.
+                              # An RD may not span modules — split it if it seems to.
+layer: 0                      # 0 = foundation, 1 = surface (from MODULEMAP-PB0X.md).
+                              # Drives dependency ordering and the Light red-skip rule.
+
+# --- The requirement itself -----------------------------------------------------
+statement: >
+  If a branch source fails during the nightly refresh, the dashboard must
+  retain and flag that branch's last reconciled figures rather than show
+  zero or partial revenue.
+  # REPLACE_ME with your own RD. One observable behavior only — no
+  # and/also/then-also hiding a second behavior. Detail belongs in ac[], not here.
+
+ac:                            # 1-3 Given/When/Then blocks. AC "k" (the trailing
+                              # numeral in each id) is the AC's index, NOT a
+                              # per-RD ordinal — it is what tc-template.yaml's
+                              # TC id's <k> component refers to.
+  - id: AC-PB0X-012.03-1
+    given: "Branch B source unreachable when the nightly refresh job runs"
+    when: "the other branches finish refreshing"
+    then: "Branch B shows its last reconciled date and figures, flagged stale; no branch shows 0 or partial revenue"
+  - id: AC-PB0X-012.03-2
+    given: "Branch B source returns malformed rows"
+    when: "the ETL validation step runs"
+    then: "the batch is rejected, prior-day figures are retained, and an error notification fires — figures are never partially overwritten"
+
+nfr_refs:                     # References into SPEC-PB0X.md's NFR register.
+  - NFR-PB0X-004
+
+# --- Dependencies & hazard -------------------------------------------------------
+depends_on:                    # Other RD ids (bare id, not id@version) that must
+                              # reach state: accepted before this RD can be claimed.
+  - RD-PB0X-011.01
+
+hazard: true                  # true if this RD touches revenue-figure integrity,
+                              # auth/permissions/migrations/secrets/payment/pii, or
+                              # any path in config/hazard-paths.yaml. If true: heavy
+                              # gates + serial execution, not overridable by profile.
+
+# --- Delegation --------------------------------------------------------------
+delegation:
+  level: L3                   # L0-L4 per config/delegation-map.yaml. L5 is never
+                              # granted (CZ-Harness policy, not a CASAN one).
+  leash: "A+"                 # A (standard) or A+ (hazard / heavy-profile). Must
+                              # be A+ if hazard: true.
+
+# --- Estimation (three-point, hours) ----------------------------------------------
+estimate:
+  optimistic: 2
+  likely: 3
+  pessimistic: 5              # MUST be <= 6 — one of the six RD-validity rules.
+  expected_h: 3.2              # = (optimistic + 4*likely + pessimistic) / 6. MUST be
+                              # <= 4 — the other bounding rule. Recompute and log any
+                              # change in EST-PB0X.md's variance log.
+
+# --- Process flags -----------------------------------------------------------
+red_skipped: false             # PERMANENT once true. Only ever true under profile:
+                              # light AND layer: 1. Never toggle back to false —
+                              # if used in error, open a new RD version instead.
+
+# --- Lifecycle (system-managed — do not hand-edit after draft) -------------------
+state: red                     # draft | blocked_dep | ready | claimed | red | green |
+                              # ai_review | sec_review | human_review | accepted |
+                              # rejected | stale | blocked_hardstop | withdrawn.
+                              # Transitions enforced by hooks/guard-state-transition.sh
+                              # per the table in docs/TRACEABILITY.md / plan §6.1.
+assigned_agent: dev            # system-managed — set when an agent claims this RD.
+claimed_at: "2026-07-27T09:41:12Z"   # system-managed — ISO8601 UTC.
+
+# --- Tests & evidence ----------------------------------------------------------
+tests:                         # TC ids derived from this RD's AC (see tc-template.yaml).
+  - TC-PB0X-012.03-1
+  - TC-PB0X-012.03-2
+  - TC-PB0X-012.03-1N
+
+evidence:
+  red_log: evidence/RD-PB0X-012.03/tests-red-v3.log     # system-managed
+  green_log: null                                        # system-managed
+
+# --- Gates ---------------------------------------------------------------------
+gates: []                      # GATE-RD-<id>-<nn> ids, populated as gates fire —
+                              # never hand-authored (see gate-record-template.json).

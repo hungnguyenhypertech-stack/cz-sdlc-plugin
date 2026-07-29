@@ -1,0 +1,59 @@
+# =============================================================================
+# TEMPLATE: tc-template.yaml
+# One Test Case (TC), derived from a specific Acceptance Criterion (AC) on a
+# specific RD version. Copy this file per test case as tests/.meta/<id>.yaml
+# (the sidecar hooks/guard-rd-freeze.sh reads) alongside the actual test code
+# under tests/**. Field names below match schemas/testcase.schema.json exactly
+# — the required fields are id, derived_from, rd_hash, category, ac_ref,
+# description. Everything past "Execution metadata" is optional convenience,
+# not schema-enforced.
+# =============================================================================
+
+# --- Identity ------------------------------------------------------------------
+id: TC-PB0X-012.03-2N
+# ID pattern: TC-<proj>-<nnn>.<mm>-<k><suffix>
+#   <nnn>.<mm>  = the RD's own numbering it's derived from (e.g. "012.03" ties
+#                 this TC to RD-PB0X-012.03)
+#   <k>         = the AC's id index (fixed at authoring time), NOT its ordinal
+#                 position in ac[]. Several TCs may share a k.
+#   <suffix>    = (bare) acceptance | N negative | P permission/role | F NFR
+# Example: TC-PB0X-012.03-2N = test for RD-PB0X-012.03, AC index 2, negative variant.
+
+derived_from: "RD-PB0X-012.03@v3"
+# Format: <RD id>@v<version>. Pins the TC to the EXACT RD version it was
+# derived from.
+
+rd_hash: "sha256:REPLACE_ME"
+# Copy of the RD's content_hash AT THE TIME this TC was derived — the
+# change-detection link. If the RD's CURRENT content_hash no longer matches
+# this value, the TC is stale (see docs/TRACEABILITY.md freeze rule) and must
+# be re-derived before hooks/guard-rd-freeze.sh will allow further src/** writes.
+
+ac_ref: AC-PB0X-012.03-2
+# Which AC (by id) this TC was derived from. Required — this is what makes
+# "AC with no TC" and "TC with no AC" detectable in RTM-PB0X.md.
+
+# --- Classification -------------------------------------------------------------
+category: negative
+# acceptance | negative | permission | nfr — should agree with the id suffix:
+#   acceptance -> bare  |  negative -> N  |  permission -> P  |  nfr -> F
+
+# --- Description ----------------------------------------------------------------
+description: >
+  Verifies that when Branch B's source returns malformed rows during the
+  nightly refresh, the ETL validation step rejects the batch, retains
+  prior-day figures unchanged, and fires an error notification — figures
+  are never partially overwritten.
+  # REPLACE_ME with your own TC. Should read as a standalone sentence even
+  # without looking at the RD's AC text — this is what /cz:explain surfaces
+  # to a non-coder PM.
+
+# --- Optional structured detail (not schema-enforced, but recommended) ----------
+given: "Branch B source returns malformed rows"
+when: "the ETL validation step runs"
+then: "the batch is rejected, prior-day figures retained, error notification fires"
+
+# --- Execution metadata (optional, system-managed once the runner touches it) ---
+test_path: tests/reconciliation/test_nightly_refresh.py::test_malformed_rows_rejected
+last_run_result: null   # pass | fail | not_run
+last_run_at: null        # ISO8601 UTC

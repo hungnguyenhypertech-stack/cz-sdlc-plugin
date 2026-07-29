@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cz-harness/schemas/testcase.schema.json",
+  "title": "Test Case (TC)",
+  "description": "Derived from exactly one RD's AC at a given version/hash. rd_hash is the change-detection link (plan §5.3).",
+  "type": "object",
+  "required": ["id", "derived_from", "rd_hash", "category", "ac_ref", "description"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "pattern": "^TC-[A-Za-z0-9]+-[0-9]+\\.[0-9]+-[0-9]+[NPF]?$" },
+    "derived_from": { "type": "string", "description": "RD id @ version, e.g. RD-PB04-012.03@v3" },
+    "rd_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]+$" },
+    "ac_ref": { "type": "string", "pattern": "^AC-[A-Za-z0-9]+-[0-9]+\\.[0-9]+-[0-9]+$" },
+    "category": { "type": "string", "enum": ["acceptance", "negative", "permission", "nfr"] },
+    "description": { "type": "string" },
+    "state": { "type": "string", "enum": ["fresh", "stale", "missing"], "description": "fresh if TC.rd_hash == RD.content_hash; stale if not; missing if an AC has no TC at all. Computed, not stored authoritative — recomputed by project-state.sh." }
+  }
+}

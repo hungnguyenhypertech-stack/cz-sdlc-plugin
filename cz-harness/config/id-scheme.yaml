@@ -1,0 +1,25 @@
+# CZ-Harness ID scheme (plan §5.2). Machine-readable twin of docs/TRACEABILITY.md — /cz:audit
+# checks the two agree. IDs are immutable and never reused; see behavior.on_withdraw.
+
+patterns:
+  requirement:       "REQ-<proj>-<nnn>"
+  rd:                 "RD-<proj>-<nnn>.<mm>"
+  acceptance_criterion: "AC-<proj>-<nnn>.<mm>-<k>"
+  test_case:           "TC-<proj>-<nnn>.<mm>-<k>[N|P|F]"     # bare = acceptance, N = negative, P = permission/role, F = NFR/performance
+  wbs_leaf:            "WBS-<proj>-<a>.<b>.<c>"
+  nfr:                 "NFR-<proj>-<nnn>"
+  gate_record:         "GATE-<rd-id>-<nn>"
+  hard_stop:           "HS-<proj>-<nnn>"
+
+notes:
+  k_field: "k is the AC index, not a per-RD ordinal. Several TCs may share a k, disambiguated by category suffix."
+  display_short_forms: "Board cards show <nnn>.<mm>; prose uses RD-<nnn>.<mm>; diagrams may elide <proj>. Short forms NEVER appear in rd/*.md, events.jsonl, or gate records — those are always fully qualified."
+  immutability: "IDs are immutable and never reused. A descoped RD becomes state: withdrawn, not deleted. Renumbering is not a supported operation."
+
+project_code:
+  # OPEN QUESTION (plan §14.4) — not yet answered. PB04 used throughout examples/templates
+  # as a placeholder tied to the project brief. Replace <proj> project-wide via a single
+  # find/replace across rd/**, tests/**, templates/** when a real project code is assigned;
+  # do NOT renumber existing IDs once any RD has left state: draft.
+  placeholder: "PB0X"
+  example_used_in_templates: "PB04"

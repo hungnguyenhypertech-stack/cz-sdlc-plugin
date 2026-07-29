@@ -1,0 +1,46 @@
+{
+  "name": "cz-harness",
+  "displayName": "CZ-Harness (Customer Zero Harness)",
+  "version": "1.0.8-phase0",
+  "description": "An AI-native delivery Harness for FPT project managers. RD-driven, fully traceable, real-time observable. Ships as a Claude Code plugin: 10 role subagents, 21 slash commands, 7 packaged skills, 9 enforcing hooks + 1 cosmetic deliverable-rendering hook, 3 gate profiles, an event-sourced live board, and an HTML-rendered deliverables system for every agent's output (see docs/DELIVERABLES.md).",
+  "author": {
+    "name": "HungNQ23"
+  },
+  "keywords": [
+    "pm",
+    "delivery",
+    "casan",
+    "sdd",
+    "traceability",
+    "governance",
+    "fpt"
+  ],
+  "planSource": "CZ-HARNESS-PLAN-v0.4.md (2026-07-27, supersedes v0.3/v0.2/v0.1)",
+  "buildPhase": "0-5 scaffold — see docs/ and §12 of the plan for exit criteria not yet exercised against a real runtime",
+  "commands": "./commands",
+  "skills": "./skills",
+  "config": {
+    "gates": "./config/gates.yaml",
+    "delegationMap": "./config/delegation-map.yaml",
+    "modelRouting": "./config/model-routing.yaml",
+    "hazardPaths": "./config/hazard-paths.yaml",
+    "idScheme": "./config/id-scheme.yaml"
+  },
+  "schemas": "./schemas",
+  "templates": "./templates",
+  "board": "./board/board.html",
+  "docs": "./docs",
+  "notes": [
+    "1.0.8: closed all 5 remaining Minor audit findings (N2-N5; N1 is a deliberate WONT-FIX, both extra commands kept by user decision) plus one incidentally-discovered bug: gates.yaml's module_overrides example now has an inert-by-design comment (N2); risk-gov.md's 'L0-L5' corrected to 'L0-L4' and cz-risk.md's invented A/B/C leash scale replaced with the real A/A+ vocabulary used everywhere else, including two incidental 'leash B' references in cz-viva.md/viva-prep/SKILL.md (N3); LIGHTWEIGHT-MODE.md's dangling /cz:trace reference fixed to the real command after a full-plugin sweep for other dangling command references found none (N4); gate-record.schema.json rewritten as a oneOf over the 3 real shapes actually used in production (flat phase-level, flat RD-level DOR, nested RD-level review-gate), mechanically validated against all 26 real gate-records/*.json files with 0 failures (N5). Separately: commands/cz-gate.md, skills/gate-engine/SKILL.md, and docs/OPERATOR-GUIDE.md had the gate-2 security-review trigger backwards ('leash=A' instead of 'leash=A+') — found and fixed alongside N3's related cz-risk.md fix; full-plugin grep confirms no remaining instances of the reversed condition. Full hooks/tests/*.sh suite (8 scripts, 73 assertions) re-run after every fix in this round — all pass, no regressions.",
+    "1.0.7: full audit pass against Plugin/CZ-HARNESS-PLAN-v0.4.md (see Plugin/CZ-HARNESS-AUDIT-2026-07-29.md for complete findings/fix log). All 9 Critical and 7 Major findings fixed and functionally verified (hooks/tests/*.sh — 8 scripts, 73 assertions, all pass): guard-secrets.sh's grep flag-misparse fail-open on private keys (C2); detect-hazard.sh's BSD-sed bug that silently disabled ALL hazard-path escalation (C1); cz-rd.md auto-committing RD splits with no human step by default (C3); guard-rd-freeze.sh's TC-staleness check being dead code against a sidecar mechanism nothing wrote (C4); contaminated state/telemetry/rd/ shipped inside the plugin package plus the CZ_ROOT-silently-falls-back-to-pwd root cause, now fails loudly instead (C5); guard-red-before-green.sh's cwd-relative red-log path bug, same root cause (M1); rd/*.yaml vs rd/*.md drift across 4 agents' tool grants plus 8 more files found in a full sweep (M2); the entirely-missing skills/ directory, now 7 real skills (C6); telemetry events not conforming to their own schema, reconciled at both the schema and emitter layer (C7); board cost_usd rollup, honestly null until a real cost source exists (C8); OPERATOR-GUIDE.md describing a fictional command/state set, rewritten from the real hook/command source (C9); the board-projection-from-telemetry-alone claim corrected to describe the real hybrid design (M5); board.html's missing leash badge and draft strip row (M6); agentops's append-only guarantee, now a byte-prefix hook check instead of prose (M3); outer-pipeline step ordering, now a real hook instead of prompt-only (M4); RD-GUIDE.md's non-schema-valid estimate/ac field names (M7). Five Minor items remain open (see audit file N1-N5). A pre-fix snapshot is kept at Plugin/_backups/cz-harness-1.0.5-phase0-pre-audit-fixes/.",
+    "This plugin defines the CONTRACTS (schemas, config, hook scripts, agent/command definitions, board) for CZ-Harness.",
+    "Per-project runtime state (rd/*.md — Markdown with a YAML frontmatter block, not bare *.yaml — tests/**, evidence/, gate-records/, deliverables/, telemetry/events.jsonl, state/) lives in the PROJECT repo that installs this plugin, not in the plugin itself.",
+    "deliverables/ is where every agent's narrative output lives (SCOPE/SPEC/ARCH/RISK/reviews/RTM/WEEKLY/CASE-STUDY/...), each auto-rendered to HTML via hooks/render-deliverable.sh using templates/deliverables/style.css + page.html.tmpl. See docs/DELIVERABLES.md.",
+    "Test runner target for the red/green hooks: pytest (decision recorded 2026-07-27). Other runners are adapters — see hooks/lib/test-runner-adapter.sh.",
+    "Open questions from plan §14 not yet resolved: FPT RD-template alignment (Q3), project-code convention for real projects (Q4), language (Q5). Treat rd-template.yaml as provisional until Q3 is answered.",
+    "1.0.3: UNDERSTANDING-LOG.md split into deliverables/understanding-log/<phase>.md + deliverables/understanding-log/rd/<rd-id>.md fragments (one writer per file) after a real incident where two RDs' concurrent /cz:dor reviews raced on the single shared file and lost its prior history to a last-write-wins overwrite. UL-<nnn> numbering is now fragment-local. See templates/UNDERSTANDING-LOG.md's header comment and docs/DELIVERABLES.md.",
+    "1.0.4: hooks/lib/common.sh gained a CZ_ACTING_AGENT/CZ_ACTIVE_RD 'Identity fallback' section (cz_sole_lock_agent/cz_sole_lock_rd/cz_lock_agent_for_rd/cz_extract_rd_id) since no command/agent runtime actually propagates those env vars across separate tool calls or into Task-dispatched subagents — hooks now resolve identity from state/locks/*.lock instead. guard-red-before-green.sh and guard-rd-freeze.sh were also reordered to try the active claim lock BEFORE grepping the target file's own RD-ID annotations, since a shared file (one file per module) carrying several RDs' annotations previously always resolved to whichever RD's annotation appeared first in the file, not the one actually being worked on — this was caught live when RD-AIBOOTCAMP-005.01a's build shared src/task-model.mjs with the already-green RD-AIBOOTCAMP-002.01a.",
+    "1.0.6: skills/ was listed in plan §11's repository layout (7 named skills: rd-decomposition, sdd-loop, gate-engine, traceability, telemetry, devbook, viva-prep) but the directory never existed and plugin.json had no skills field — audit finding C6. Added skills/<name>/SKILL.md for all 7, each self-sufficient (frontmatter description + substantive body pulled from the existing docs/*.md, commands/cz-*.md, plan sections, and config/schema/template files that already define the same territory, not new mechanics), and wired \"skills\": \"./skills\" here. Purely additive — no command, hook, agent, or config file changed.",
+    "1.0.5: nothing in the harness ever chained one command to the next — agents/sub-pm.md's frontmatter had no Task tool, so the agent documented as 'handing off' to ba/sa/planner/risk-gov/dev/test-designer/ai-reviewer/sec-reviewer/agentops could only compute what should happen next and write state/, leaving a human to invoke every slash command and every RD's /cz:dor -> /cz:build -> /cz:gate cycle by hand (setting human_gates.<phase> to false only removed the pause INSIDE an already-running command; it was never the thing that chained them). sub-pm now has Task and dispatches per its own handoff table, under a new hard rule 6 stating that dispatching is scheduling and never approving — hard rules 1-5 (no src/**, no gate approval, no gates.yaml edit, no committed RD split, hand off when in doubt) are unchanged. New commands/cz-run.md sequences those calls unattended and stops automatically on a true human_gates.<key> (treating an absent human_gates.scope as true — gates.yaml's last unconditional checkpoint), a hard-stop, budgets.per_wave_usd_hard, or exhaustion, reporting the blocking unit and the next manual action; it writes no gate record, flips no gate, and bypasses no hook. Purely additive — no existing command, hook, or one_way_ratchet invariant changed. See docs/OPERATOR-GUIDE.md §3a."
+  ]
+}

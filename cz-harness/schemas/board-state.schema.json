@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cz-harness/schemas/board-state.schema.json",
+  "title": "state/board.json — derived, overwritable, hybrid projection (rd/*.md + gate-records/*.json + heartbeats, plus telemetry/events.jsonl for what only the log can supply)",
+  "description": "Written only by hooks/project-state.sh. Never hand-edited. Audit finding M5 (2026-07-29): earlier drafts of this title/description, and the plan's §7.1/§13 prose, claimed this file is 'rebuildable from telemetry/events.jsonl alone' — that was never actually true of hooks/project-state.sh (the real PostToolUse-wired projector), which reads rd/*.md frontmatter + gate-records/*.json + state/heartbeats/*.hb directly for state/module/summary/assigned_agent/leash/time-in-state, and only sums telemetry/events.jsonl for the one figure those direct-read sources can't supply (cost_usd, C8). Both source families are themselves auditable, versioned/append-only files, not opaque state, so this hybrid is a deliberate, honest design choice, not drift — but it is NOT a pure events-log replay, and /cz:rebuild-state's telemetry-only replay is a cross-check / recovery path against this hook's real output, not an equivalent alternate implementation of it. Stalls are NOT stored here as an event — board.html/​​​/cz:status compute them from last_heartbeat vs wall clock (plan §7.1).",
+  "type": "object",
+  "required": ["project", "profile", "updated_at", "counts", "rds", "agents"],
+  "properties": {
+    "project": { "type": "string" },
+    "wave": { "type": ["integer", "null"] },
+    "profile": { "type": "string", "enum": ["light", "standard", "heavy"] },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "concurrency": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string" },
+        "max_in_flight": { "type": "integer" },
+        "current_in_flight": { "type": "integer" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "description": "All eight mutually-exclusive RD states must sum to the total RD count (plan §7.2).",
+      "properties": {
+        "accepted": { "type": "integer" },
+        "in_flight": { "type": "integer" },
+        "in_review": { "type": "integer" },
+        "ready": { "type": "integer" },
+        "blocked_dep": { "type": "integer" },
+        "hard_stop": { "type": "integer" },
+        "stale": { "type": "integer" },
+        "withdrawn": { "type": "integer" },
+        "total": { "type": "integer" }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "properties": {
+        "usd_total": { "type": "number" },
+        "tokens_total": { "type": "integer" },
+        "human_hours_total": { "type": "number" },
+        "corrections_total": { "type": "integer" },
+        "rubber_stamp_risk": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] }
+      }
+    },
+    "hard_stops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^HS-[A-Za-z0-9]+-[0-9]+$" },
+          "rd": { "type": "string" },
+          "reason": { "type": "string" },
+          "owner": { "type": "string" }
+        }
+      }
+    },
+    "in_flight_detail": {
+      "description": "Optional convenience mirror of the in-flight subset of rds[] (denormalized for the header line). Not authoritative — rds[] is.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rd": { "type": "string" },
+          "state": { "type": "string" },
+          "agent": { "type": "string" },
+          "leash": { "type": "string" },
+          "cost_usd": { "type": "number" },
+          "time_in_state_s": { "type": "integer" }
+        }
+      }
+    },
+    "rds": {
+      "type": "array",
+      "description": "One entry per RD, every RD in the project appears exactly once.",
+      "items": {
+        "type": "object",
+        "required": ["id", "state"],
+        "properties": {
+          "id": { "type": "string" },
+          "state": { "type": "string" },
+          "module": { "type": ["string", "null"] },
+          "summary": { "type": ["string", "null"] },
+          "assigned_agent": { "type": ["string", "null"] },
+          "time_in_state_s": { "type": ["integer", "null"] },
+          "cost_usd": { "type": ["number", "null"], "description": "Rolled up by hooks/project-state.sh: sum of \"cost_usd\" across every telemetry/events.jsonl line tagged with this RD's id (C8). null means no cost-bearing event exists yet for this RD; 0/a number means at least one does." },
+          "leash": { "type": ["string", "null"], "enum": [null, "A", "A+"], "description": "Mirrors the RD's own delegation.leash (rd.schema.json) — sourced by hooks/project-state.sh via cz_rd_field \"$rd_path\" delegation.leash. null only until risk-gov assigns delegation (phase 6); required and non-null on rd.schema.json once an RD is real (M6)." },
+          "red_skipped": { "type": "boolean" },
+          "gate_wait": {
+            "type": "object",
+            "properties": {
+              "waiting_on": { "type": "string", "enum": ["ai-reviewer", "sec-reviewer", "human"] },
+              "age_s": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "agents": {
+      "type": "array",
+      "description": "One entry per live agent instance. last_heartbeat drives client-side stall detection — no stall event is ever written here.",
+      "items": {
+        "type": "object",
+        "required": ["agent", "agent_state", "last_heartbeat"],
+        "properties": {
+          "agent": { "type": "string" },
+          "agent_state": { "type": "string" },
+          "rd": { "type": ["string", "null"] },
+          "last_heartbeat": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "phases": {
+      "description": "Project-level pipeline phases only (0 Scope, 1 Spec, 2 Modulemap, 3 Arch, 4 WBS, 5 Estimate, 6 Risk, 10 Report). Phases 7-9 (DoR/Build/Gate) run per-RD, not once per project, and are represented by rds[]/counts instead. Sourced from gate-records/PB<n>-*.json by hooks/project-state.sh.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "name", "status"],
+        "properties": {
+          "step": { "type": "integer" },
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["not_started", "passed", "failed"] },
+          "artifact": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

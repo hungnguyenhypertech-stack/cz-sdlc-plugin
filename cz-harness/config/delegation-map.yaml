@@ -1,0 +1,32 @@
+# CZ-Harness delegation defaults — per-RD entries override these at rd/<id>.yaml:delegation
+# Levels L0-L5 per the Operating Model handout. L5 is never granted in this plugin (CZ-Harness policy).
+# Leash: A (standard oversight) | A+ (hazard / heavy-profile oversight, per-action approval).
+
+levels:
+  L0: "Read-only / observe. Reviewers (ai-reviewer, sec-reviewer) live here permanently."
+  L1: "Draft only, everything human-reviewed before it moves. Default for ba."
+  L2: "Propose structured artifacts (architecture, estimates, risk) for human sign-off. Default for sa, planner, risk-gov."
+  L3: "Execute within a scoped RD under a strict SDD loop, gated before merge. Default for test-designer, dev, agentops."
+  L4: "Orchestrate across RDs (scheduling, state transitions) but never write code/tests or approve gates. Default for sub-pm; also the ceiling for hazard work under profile: heavy."
+  L5: "Not granted. CZ-Harness-imposed ceiling (Operating Model §2), not a CASAN restriction — see docs/CASAN-MAPPING.md."
+
+leash:
+  A:  "Standard oversight — gate sequence runs, human approves at the end."
+  "A+": "Hazard oversight — security review mandatory, named reviewer, per-action approval, evidence link required."
+
+agent_defaults:
+  sub-pm:         { level: L4, leash: A }
+  ba:             { level: L1, leash: A }
+  sa:             { level: L2, leash: A }
+  planner:        { level: L2, leash: A }
+  risk-gov:       { level: L2, leash: A }
+  test-designer:  { level: L3, leash: A }
+  dev:            { level: L3, leash: A }
+  ai-reviewer:    { level: L0, leash: A }
+  sec-reviewer:   { level: L0, leash: "A+" }
+  agentops:       { level: L3, leash: A }
+
+escalation_rules:
+  - "Any RD with hazard: true escalates dev/test-designer leash to A+ for that RD regardless of agent_defaults."
+  - "An RD with no delegation record cannot be claimed — /cz:rd must write { level, leash } before an RD reaches state: ready."
+  - "delegation_ceiling in config/gates.yaml caps every RD's level; L4 is reachable only under profile: heavy, and only for sub-pm-class orchestration actions, never for dev/test-designer content-writing actions."
