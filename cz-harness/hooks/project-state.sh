@@ -39,6 +39,9 @@ COUNT_draft=0; COUNT_superseded=0
 # Accumulated as a joined string, not an array — bash 3.2's `set -u` treats a
 # reference to a still-empty array ("${arr[@]}") as an unbound variable.
 RD_ENTRIES=""
+# "<id> <state>\n" lines, looked up by the heartbeat loop below to tell a
+# genuinely stuck agent from a stale heartbeat left over from a finished RD.
+RD_STATE_LINES=""
 
 if [ -d "$RD_DIR" ]; then
   for rd_file in "$RD_DIR"/*.md; do
@@ -126,6 +129,11 @@ if [ -d "$RD_DIR" ]; then
 
     entry="{\"id\":\"$id\",\"state\":\"$state\",\"module\":$module_json,\"summary\":$summary_json,\"assigned_agent\":$assigned_agent_json,\"time_in_state_s\":$time_in_state_s,\"red_skipped\":${red_skipped:-false},\"leash\":$leash_json,\"cost_usd\":$cost_usd_json}"
     RD_ENTRIES="${RD_ENTRIES:+$RD_ENTRIES,}$entry"
+
+    # Recorded so the heartbeat loop below can tell "this RD is still
+    # in-flight" from "this RD is done" — see the false-stall note there.
+    RD_STATE_LINES="${RD_STATE_LINES}${id} ${state}
+"
   done
 fi
 
@@ -152,6 +160,27 @@ if [ -d "$STATE_DIR/heartbeats" ]; then
         ;;
     esac
     agent_state="${agent_state:-executing}"
+
+    # False-stall guard: a heartbeat file is written while an agent works an
+    # RD and (by design, per this file's header comment) nothing guarantees
+    # it gets cleared once that RD finishes — release-lock.sh best-effort
+    # deletes it on rd_release, but any path that misses that (a crash, a
+    # manual edit, a future code path) leaves it frozen at agent_state
+    # "executing" forever. Since board.html/cz:status derive "stalled" purely
+    # from agent_state=="executing" + heartbeat age (schema comment on
+    # `agents`), a stale file falsely and permanently reports a stall for an
+    # RD that is actually done. Cross-check against this run's freshly-read
+    # RD states (the source of truth) and downgrade to "idle" whenever the
+    # referenced RD has already reached a terminal state — self-healing on
+    # every board rebuild regardless of whether the heartbeat file itself
+    # was ever cleaned up.
+    if [ -n "$rd" ] && [ "$rd" != "null" ] && [ "$agent_state" = "executing" ]; then
+      rd_state="$(printf '%s' "$RD_STATE_LINES" | awk -v id="$rd" '$1==id{print $2; exit}')"
+      case "$rd_state" in
+        accepted|superseded|withdrawn) agent_state="idle" ;;
+      esac
+    fi
+
     rd_json="null"
     [ -n "$rd" ] && [ "$rd" != "null" ] && rd_json="\"$rd\""
     entry="{\"agent\":\"$agent\",\"agent_state\":\"$agent_state\",\"rd\":$rd_json,\"last_heartbeat\":\"$ts\"}"

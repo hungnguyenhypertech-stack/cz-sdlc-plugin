@@ -97,6 +97,31 @@ delegation:
   leash: "A"
 EOF
 
+# --- RD-TEST-003.01: ACCEPTED (terminal), but its heartbeat file is still
+# frozen at agent_state "executing" from before the gate closed — the exact
+# shape of the false-stall bug seen live on RD-AIBOOTCAMP-005.01c. ---
+cat > "$CZ_ROOT/rd/RD-TEST-003.01.md" <<'EOF'
+id: RD-TEST-003.01
+state: accepted
+module: reconciliation
+summary: "false-stall fixture — accepted with a stale executing heartbeat"
+assigned_agent: null
+claimed_at: null
+delegation:
+  level: L3
+  leash: "A"
+EOF
+cat > "$CZ_ROOT/state/heartbeats/ai-reviewer.hb" <<'EOF'
+{"last_heartbeat":"2026-07-29T00:00:00Z","agent_state":"executing","rd":"RD-TEST-003.01"}
+EOF
+
+# --- Genuinely in-flight heartbeat for RD-TEST-001.01 (state: claimed) —
+# must NOT be downgraded; a real stall on a real in-flight RD must still
+# read as "executing". ---
+cat > "$CZ_ROOT/state/heartbeats/dev.hb" <<'EOF'
+{"last_heartbeat":"2026-07-29T00:00:00Z","agent_state":"executing","rd":"RD-TEST-001.01"}
+EOF
+
 # telemetry: 3 lines tagged to RD-TEST-001.01 (two carry cost_usd, one
 # doesn't — must still count only the two that do), plus 1 line tagged to a
 # DIFFERENT RD (must not leak into RD-TEST-001.01's sum), plus 0 lines at all
@@ -182,6 +207,27 @@ PYEOF
 echo "  board.json schema validation: $SCHEMA_VALID"
 check "state/board.json validates against schemas/board-state.schema.json" \
   "$([ "$SCHEMA_VALID" = "valid" ] && echo 1 || echo 0)"
+
+AGENT_STATES="$(python3 -c "
+import json
+d = json.load(open('$BOARD_FILE'))
+print(json.dumps({a['agent']: a['agent_state'] for a in d['agents']}))
+")"
+echo "  agents agent_state map: $AGENT_STATES"
+
+STALE_DOWNGRADED="$(python3 -c "
+import json
+m = json.loads('''$AGENT_STATES''')
+print(1 if m.get('ai-reviewer') == 'idle' else 0)
+")"
+check "heartbeat pinned to an accepted RD (RD-TEST-003.01) is downgraded from executing to idle, not left to false-stall forever" "$STALE_DOWNGRADED"
+
+INFLIGHT_UNCHANGED="$(python3 -c "
+import json
+m = json.loads('''$AGENT_STATES''')
+print(1 if m.get('dev') == 'executing' else 0)
+")"
+check "heartbeat pinned to a genuinely in-flight RD (RD-TEST-001.01, state: claimed) stays executing" "$INFLIGHT_UNCHANGED"
 
 echo "---"
 echo "$pass_count passed, $fail_count failed"

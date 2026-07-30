@@ -32,4 +32,21 @@ rm -f "$LOCK_FILE"
 
 cz_emit_event "{\"ts\":\"$(cz_now)\",\"run_id\":\"hook\",\"rd\":\"$RD_ID\",\"agent\":\"$HELD_BY\",\"event\":\"rd_release\",\"result\":\"$REASON\"}"
 
+# Best-effort cleanup: every agent that touched this RD (dev, test-designer,
+# ai-reviewer, cz-build, ...) may still have a state/heartbeats/<agent>.hb
+# file pinned to it with agent_state "executing" from its last dispatch. Once
+# the RD's lock is released nothing will ever update those files again, so
+# without this they sit frozen and read as a permanent false stall (board.html
+# /cz:status derive "stalled" purely from agent_state=="executing" + heartbeat
+# age). Delete rather than idle-in-place — a stale rd/timestamp pair from a
+# finished RD carries no useful information, and project-state.sh's own
+# state-crosscheck (see its heartbeat loop) covers any file this step misses.
+if [ -d "$STATE_DIR/heartbeats" ]; then
+  for hb in "$STATE_DIR/heartbeats"/*.hb; do
+    [ -f "$hb" ] || continue
+    hb_rd="$(cz_json_field "$hb" rd 2>/dev/null || true)"
+    [ "$hb_rd" = "$RD_ID" ] && rm -f "$hb"
+  done
+fi
+
 exit 0
