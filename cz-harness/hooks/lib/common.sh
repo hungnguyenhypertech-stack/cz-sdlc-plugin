@@ -297,8 +297,23 @@ cz_lock_agent_for_rd() {
 # concurrently-claimed RDs a given tool call belongs to, then look up that
 # RD's own lock (see cz_lock_agent_for_rd) instead of falling back to the
 # ambiguous "only one lock exists" case.
+#
+# state/locks/*.lock, state/heartbeats/*.hb, state/board.json, and
+# telemetry/events.jsonl references are stripped BEFORE matching. Live
+# incident: a completely unrelated Claude Code session merely inspecting
+# RD-AIBOOTCAMP-009.01c's orphaned lock (`cat state/locks/RD-...c.lock`,
+# `grep ... telemetry/events.jsonl`) had every one of its own tool calls
+# misattributed to that RD's stale claim, which kept overwriting the
+# heartbeat and made a genuinely dead build process look perpetually alive —
+# masking the real stall for over 15 minutes. Reading or grepping these
+# meta/introspection files is diagnostic activity ABOUT an RD, never work ON
+# one, so an RD id appearing only inside one of these paths must not resolve
+# identity. A path under a real artifact directory (evidence/, deliverables/,
+# gate-records/, rd/, tests/, src/, ...) is unaffected and still matches.
 cz_extract_rd_id() {
-  echo "$1" | grep -oE 'RD-[A-Za-z0-9]+-[0-9]+\.[0-9]+[a-z]?' | head -1 || true
+  echo "$1" \
+    | sed -E 's#state/(locks|heartbeats)/[^ "'"'"',]*##g; s#state/board\.json##g; s#telemetry/[^ "'"'"',]*##g' \
+    | grep -oE 'RD-[A-Za-z0-9]+-[0-9]+\.[0-9]+[a-z]?' | head -1 || true
   return 0
 }
 
