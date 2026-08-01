@@ -296,6 +296,8 @@ def build_index(deliverables_root, template_path):
             "mtime": mtime,
         })
 
+    write_text(os.path.join(deliverables_root, "index.json"), json.dumps(rows, indent=2) + "\n")
+
     data_json = json.dumps(rows)
     body = """
 <div class="index-filters">
