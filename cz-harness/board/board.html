@@ -365,18 +365,6 @@
   .rd-state-ai_review, .rd-state-sec_review, .rd-state-human_review, .rd-state-stale { border-color: var(--amber); color: var(--amber); }
   .rd-state-draft, .rd-state-blocked_dep { color: var(--dim); }
   .rd-state-withdrawn, .rd-state-superseded { color: var(--border); text-decoration: line-through; }
-  .rd-priority {
-    display: inline-block;
-    font-size: 11px;
-    padding: 1px 8px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    color: var(--dim);
-    white-space: nowrap;
-  }
-  .rd-priority-high { border-color: var(--red); color: var(--red); }
-  .rd-priority-medium { border-color: var(--amber); color: var(--amber); }
-  .rd-priority-low { color: var(--dim); }
   .rd-pager {
     display: flex;
     align-items: center;
@@ -500,21 +488,11 @@
   <div class="rd-table-wrap">
     <table class="rd-table">
       <thead>
-        <tr><th>RD</th><th>Module</th><th>State</th><th>Agent</th><th>Time in state</th><th>Priority</th><th>Complexity</th><th>Finished</th><th>Summary</th></tr>
+        <tr><th>RD</th><th>Module</th><th>State</th><th>Agent</th><th>Time in state</th><th>Summary</th></tr>
         <tr class="rd-filter-row">
           <th></th>
           <th><select id="rd-module-filter"><option value="">all modules</option></select></th>
           <th><select id="rd-state-filter"><option value="">all states</option></select></th>
-          <th></th>
-          <th></th>
-          <th>
-            <select id="rd-priority-filter">
-              <option value="">all priorities</option>
-              <option value="high">high</option>
-              <option value="medium">medium</option>
-              <option value="low">low</option>
-            </select>
-          </th>
           <th></th>
           <th></th>
           <th></th>
@@ -738,7 +716,6 @@ let rdPage = 0;
 let rdFilterQuery = "";
 let rdModuleFilter = "";
 let rdStateFilter = "";
-let rdPriorityFilter = "";
 let lastRds = [];
 
 function escapeHtml(s) {
@@ -766,8 +743,7 @@ function renderRdTable(rds) {
   const filtered = rds.filter(r =>
     (!rdFilterQuery || r.id.toLowerCase().includes(rdFilterQuery)) &&
     (!rdModuleFilter || r.module === rdModuleFilter) &&
-    (!rdStateFilter || r.state === rdStateFilter) &&
-    (!rdPriorityFilter || r.priority === rdPriorityFilter)
+    (!rdStateFilter || r.state === rdStateFilter)
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / RD_PAGE_SIZE));
   if (rdPage >= totalPages) rdPage = totalPages - 1;
@@ -783,25 +759,17 @@ function renderRdTable(rds) {
     const agent = rd.assigned_agent && rd.assigned_agent !== "null" ? escapeHtml(rd.assigned_agent) : "&mdash;";
     const time = rd.time_in_state_s != null ? fmtAge(rd.time_in_state_s) : "&mdash;";
     const summary = rd.summary && rd.summary !== "null" ? escapeHtml(rd.summary) : "&mdash;";
-    const priority = rd.priority
-      ? `<span class="rd-priority rd-priority-${escapeHtml(rd.priority)}">${escapeHtml(rd.priority)}</span>`
-      : "&mdash;";
-    const complexity = rd.complexity ? escapeHtml(rd.complexity) : "&mdash;";
-    const finished = rd.finished_date ? new Date(rd.finished_date).toLocaleDateString() : "&mdash;";
     tr.innerHTML =
       `<td class="rd-id-cell">${rd.id}</td>` +
       `<td>${module}</td>` +
       `<td><span class="rd-state rd-state-${rd.state}">${rd.state}</span></td>` +
       `<td>${agent}</td>` +
       `<td>${time}</td>` +
-      `<td>${priority}</td>` +
-      `<td>${complexity}</td>` +
-      `<td>${finished}</td>` +
       `<td class="rd-summary-cell">${summary}</td>`;
     tbody.appendChild(tr);
   });
   if (!pageItems.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">no RDs match</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">no RDs match</td></tr>';
   }
 
   document.getElementById("rd-page-info").textContent =
@@ -831,12 +799,6 @@ document.getElementById("rd-filter").addEventListener("input", (e) => {
 
 document.getElementById("rd-module-filter").addEventListener("change", (e) => {
   rdModuleFilter = e.target.value;
-  rdPage = 0;
-  renderRdTable(lastRds);
-});
-
-document.getElementById("rd-priority-filter").addEventListener("change", (e) => {
-  rdPriorityFilter = e.target.value;
   rdPage = 0;
   renderRdTable(lastRds);
 });
