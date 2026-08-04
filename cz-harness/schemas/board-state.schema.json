@@ -85,6 +85,9 @@
           "time_in_state_s": { "type": ["integer", "null"] },
           "cost_usd": { "type": ["number", "null"], "description": "Rolled up by hooks/project-state.sh: sum of \"cost_usd\" across every telemetry/events.jsonl line tagged with this RD's id (C8). null means no cost-bearing event exists yet for this RD; 0/a number means at least one does." },
           "leash": { "type": ["string", "null"], "enum": [null, "A", "A+"], "description": "Mirrors the RD's own delegation.leash (rd.schema.json) — sourced by hooks/project-state.sh via cz_rd_field \"$rd_path\" delegation.leash. null only until risk-gov assigns delegation (phase 6); required and non-null on rd.schema.json once an RD is real (M6)." },
+          "priority": { "type": "string", "enum": ["low", "medium", "high"], "description": "Mirrors the RD's own priority (rd.schema.json), optional there. hooks/project-state.sh defaults to \"medium\" for any RD with no priority: field, so this is never null." },
+          "complexity": { "type": ["string", "null"], "enum": [null, "low", "medium", "high"], "description": "Display-only bucket of the RD's estimate.expected_h computed by hooks/project-state.sh (<=1.5h low, <=3h medium, >3h high) — not a stored RD field. null only if expected_h is unreadable." },
+          "finished_date": { "type": ["string", "null"], "format": "date-time", "description": "The gate_decision.timestamp from gate-records/<id>-gate.json — sourced by hooks/project-state.sh (same read already used for accepted-state time_in_state_s). null for any RD not yet accepted." },
           "red_skipped": { "type": "boolean" },
           "gate_wait": {
             "type": "object",

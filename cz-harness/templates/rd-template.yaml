@@ -74,6 +74,10 @@ hazard: true                  # true if this RD touches revenue-figure integrity
                               # any path in config/hazard-paths.yaml. If true: heavy
                               # gates + serial execution, not overridable by profile.
 
+priority: medium               # low | medium | high. Operational metadata (not
+                              # covered by content_hash, see docs/TRACEABILITY.md).
+                              # Optional — omit and the board treats it as "medium".
+
 # --- Delegation --------------------------------------------------------------
 delegation:
   level: L3                   # L0-L4 per config/delegation-map.yaml. L5 is never

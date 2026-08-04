@@ -41,6 +41,7 @@
       "items": { "type": "string", "pattern": "^RD-[A-Za-z0-9]+-[0-9]+\\.[0-9]+$" }
     },
     "hazard": { "type": "boolean" },
+    "priority": { "type": "string", "enum": ["low", "medium", "high"], "description": "Operational metadata, not covered by content_hash (docs/TRACEABILITY.md). Optional — absent/omitted is treated as \"medium\" by hooks/project-state.sh's board projection." },
     "delegation": {
       "type": "object",
       "required": ["level", "leash"],

@@ -54,6 +54,8 @@ if [ -d "$RD_DIR" ]; then
     module="$(cz_rd_field "$rd_file" module | tr -d ' ')"
     summary="$(cz_rd_field "$rd_file" summary | sed -E 's/^"(.*)"$/\1/')"
     leash="$(cz_rd_field "$rd_file" delegation.leash | tr -d ' "')"
+    priority="$(cz_rd_field "$rd_file" priority | tr -d ' ')"
+    expected_h="$(cz_rd_field "$rd_file" estimate.expected_h | tr -d ' ')"
 
     # cz_rd_field is a naive scalar reader (no real YAML parsing — see its
     # header comment): a frontmatter value of literal YAML `null` comes back
@@ -64,6 +66,8 @@ if [ -d "$RD_DIR" ]; then
     if [ "$assigned_agent" = "null" ]; then assigned_agent=""; fi
     if [ "$claimed_at" = "null" ]; then claimed_at=""; fi
     if [ "$leash" = "null" ]; then leash=""; fi
+    if [ "$priority" = "null" ]; then priority=""; fi
+    if [ "$expected_h" = "null" ]; then expected_h=""; fi
 
     assigned_agent_json="null"
     [ -n "$assigned_agent" ] && assigned_agent_json="\"$assigned_agent\""
@@ -73,6 +77,29 @@ if [ -d "$RD_DIR" ]; then
     [ -n "$summary" ] && summary_json="\"$(cz_json_escape "$summary")\""
     leash_json="null"
     [ -n "$leash" ] && leash_json="\"$leash\""
+
+    # priority (board feature, 2026-08-04): optional field (docs/TRACEABILITY.md
+    # already names it as content_hash-excluded operational metadata, but it was
+    # never actually added to rd.schema.json/rd-template.yaml until now) — an RD
+    # authored before this feature, or one whose author simply omitted it, has no
+    # `priority:` line at all. Default to "medium" rather than surfacing null, so
+    # the board's priority filter/column has something meaningful to show for
+    # every RD without requiring a backfill of existing rd/*.md files.
+    priority_json="\"${priority:-medium}\""
+
+    # complexity: display-only bucket derived from the existing three-point
+    # estimate (estimate.expected_h, already bounded 0-4h by rd.schema.json) —
+    # not a stored field, so there's nothing to backfill. Thresholds chosen to
+    # split that 0-4h range into three roughly even bands.
+    complexity_json="null"
+    if [ -n "$expected_h" ]; then
+      complexity="$(awk -v h="$expected_h" 'BEGIN {
+        if (h <= 1.5) print "low";
+        else if (h <= 3) print "medium";
+        else print "high";
+      }')"
+      [ -n "$complexity" ] && complexity_json="\"$complexity\""
+    fi
 
     # cost_usd (audit finding C8): rolled up by summing the "cost_usd" field
     # across every telemetry/events.jsonl line tagged with this RD's id —
@@ -100,6 +127,7 @@ if [ -d "$RD_DIR" ]; then
     # preceded acceptance. Prefer the gate record's own decision timestamp
     # (the actual moment the RD entered `accepted`) when one exists.
     state_anchor="$claimed_at"
+    gate_ts=""
     if [ "$state" = "accepted" ]; then
       gate_record="$GATE_RECORDS_DIR/${id}-gate.json"
       if [ -f "$gate_record" ]; then
@@ -107,6 +135,14 @@ if [ -d "$RD_DIR" ]; then
         if [ -n "$gate_ts" ]; then state_anchor="$gate_ts"; fi
       fi
     fi
+
+    # finished_date (board feature, 2026-08-04): reuses the same gate-record
+    # timestamp already read above for state_anchor — the actual moment this
+    # RD's gate_decision was approved. null for any RD not yet accepted, or an
+    # accepted RD with no gate record on disk (shouldn't happen in practice,
+    # but the field must stay honestly null rather than fabricate a date).
+    finished_date_json="null"
+    [ "$state" = "accepted" ] && [ -n "$gate_ts" ] && finished_date_json="\"$gate_ts\""
 
     time_in_state_s="null"
     claimed_epoch="$(cz_iso_to_epoch "$state_anchor")"
@@ -127,7 +163,7 @@ if [ -d "$RD_DIR" ]; then
       superseded) COUNT_superseded=$((COUNT_superseded+1)) ;;
     esac
 
-    entry="{\"id\":\"$id\",\"state\":\"$state\",\"module\":$module_json,\"summary\":$summary_json,\"assigned_agent\":$assigned_agent_json,\"time_in_state_s\":$time_in_state_s,\"red_skipped\":${red_skipped:-false},\"leash\":$leash_json,\"cost_usd\":$cost_usd_json}"
+    entry="{\"id\":\"$id\",\"state\":\"$state\",\"module\":$module_json,\"summary\":$summary_json,\"assigned_agent\":$assigned_agent_json,\"time_in_state_s\":$time_in_state_s,\"red_skipped\":${red_skipped:-false},\"leash\":$leash_json,\"cost_usd\":$cost_usd_json,\"priority\":$priority_json,\"complexity\":$complexity_json,\"finished_date\":$finished_date_json}"
     RD_ENTRIES="${RD_ENTRIES:+$RD_ENTRIES,}$entry"
 
     # Recorded so the heartbeat loop below can tell "this RD is still
