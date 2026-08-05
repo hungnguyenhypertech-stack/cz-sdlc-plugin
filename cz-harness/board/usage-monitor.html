@@ -1893,6 +1893,81 @@ $("#planLimitInput").value = state.planLimit;
 populateModelFilter();
 renderAll();
 
+
+/* ===== optional: auto-load per-project merged logs when served over http(s) =====
+   No-op under file:// (the default when opened directly) — sample data and the
+   manual "Load Claude log..." picker behave exactly as before in that case.
+   Activated by board/serve-usage-monitor.sh, which merges ~/.claude/projects/*/
+   session logs into manifest.json + merged/*.jsonl next to this file and serves
+   it locally so fetch() is allowed. */
+(function(){
+  if (location.protocol !== "http:" && location.protocol !== "https:") return;
+
+  var cache = {};   // project name -> raw jsonl text
+  var order = [];   // project names in manifest order
+
+  function buildDataset(names){
+    var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], sessions: [] };
+    names.forEach(function(name){
+      if (cache[name]) parseLogText(cache[name], dataset, name);
+    });
+    finalizeSessions(dataset);
+    return dataset;
+  }
+
+  function applySelection(names){
+    var dataset = buildDataset(names);
+    if (!dataset.events.length) { showToast("No usable events for that selection."); return; }
+    state.dataset = dataset;
+    state.rangeDays = "all";
+    state.customFrom = null; state.customTo = null;
+    $all("button", $("#rangeSeg")).forEach(function(b){ b.classList.toggle("active", b.dataset.range === "all"); });
+    $("#sourcePill").classList.remove("is-mock");
+    var label = (names.length === order.length) ? ("all " + order.length + " projects") : names.join(", ");
+    $("#sourcePillText").textContent = dataset.sessions.length + " session" + (dataset.sessions.length===1?"":"s") + " \u00b7 " + label + " (auto-loaded)";
+    populateModelFilter();
+    renderAll();
+    showToast("Loaded " + fmtInt(dataset.events.length) + " turns \u00b7 " + label + ".");
+  }
+
+  fetch("manifest.json").then(function(r){ return r.json(); }).then(function(manifest){
+    var files = (manifest && manifest.projects) || [];
+    if (!files.length) return;
+    order = files.map(function(p){ return p.name; });
+
+    var select = document.createElement("select");
+    select.id = "projectFilterSelect";
+    select.className = "btn ghost";
+    select.title = "Filter the auto-loaded data by project";
+    var allOpt = document.createElement("option");
+    allOpt.value = "__all__";
+    allOpt.textContent = "All projects (" + files.length + ")";
+    select.appendChild(allOpt);
+    files.forEach(function(p){
+      var opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = p.name;
+      select.appendChild(opt);
+    });
+    select.addEventListener("change", function(){
+      applySelection(select.value === "__all__" ? order : [select.value]);
+    });
+    var actions = document.querySelector(".topbar-actions");
+    if (actions) actions.insertBefore(select, actions.firstChild);
+
+    var remaining = files.length;
+    files.forEach(function(p){
+      fetch(p.file).then(function(r){ return r.text(); }).then(function(text){
+        cache[p.name] = text;
+      }).catch(function(){}).finally(function(){
+        remaining--;
+        if (remaining === 0) applySelection(order);
+      });
+    });
+  }).catch(function(){});
+})();
+/* ===== end optional auto-load block ===== */
+
 })();
 </script>
 

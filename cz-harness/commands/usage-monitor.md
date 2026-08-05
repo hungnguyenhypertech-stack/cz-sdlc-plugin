@@ -1,16 +1,16 @@
 ---
-description: Open the bundled Claude Usage Monitor dashboard in the default browser
+description: Open the bundled Claude Usage Monitor dashboard, auto-loaded with real usage data across all projects
 allowed-tools: Bash
 ---
 
 Opens the Claude Usage Monitor dashboard — a separate, standalone tool (token usage, model/agent/skill stats, prompt analytics, sessions). It is not part of the cz-harness board/state model; this command is a convenience launcher only.
 
-1. **Context** — the dashboard ships as a static, self-contained file inside the plugin at `board/usage-monitor.html`: no server, no network calls, no dependency on this project's `state/board.json` or any cz-harness runtime state. It renders built-in sample data by default; its own "Load Claude log…" button reads a local `.jsonl`/`.log` file client-side via the browser's File API (nothing is uploaded). Because it never `fetch()`es anything, it's safe to open directly as a `file://` URL — unlike `board/board.html`, it does not need a local HTTP server.
-2. **Plan** — determine the OS-appropriate way to open a local file in the default browser (`open` on macOS, `start` on Windows, `xdg-open` on Linux).
-3. **Execute** — open `"${CLAUDE_PLUGIN_ROOT}/board/usage-monitor.html"` in the default browser via Bash.
+1. **Context** — the dashboard is a static, self-contained file inside the plugin at `board/usage-monitor.html`: sample data by default, and an in-page "Load Claude log…" picker that reads local `.jsonl`/`.log` files client-side via the browser File API (nothing is uploaded). It also carries an *optional* auto-load block that is a no-op under `file://` (so opening it directly still behaves exactly as described above) but activates when served over `http(s)`: on load it `fetch()`es `manifest.json` + `merged/*.jsonl` from whatever served it, populates a project-filter dropdown in the topbar, and renders real data immediately — no manual file picking. `board/serve-usage-monitor.sh` is the local server that makes this activate: it merges every project's session logs under `~/.claude/projects/*/` into one `manifest.json` + one `merged/<project>.jsonl` per project inside `~/.claude/usage-monitor-run/`, copies the dashboard there as `index.html`, (re)starts a `127.0.0.1:8791` static server, and opens it.
+2. **Plan** — prefer the auto-loading path via `board/serve-usage-monitor.sh`; fall back to a plain `file://` open of the static dashboard (OS-appropriate opener: `open` on macOS, `start` on Windows, `xdg-open` on Linux) if the script is missing or fails.
+3. **Execute** — via Bash: run `"${CLAUDE_PLUGIN_ROOT}/board/serve-usage-monitor.sh"`. On any failure, fall back to opening `"${CLAUDE_PLUGIN_ROOT}/board/usage-monitor.html"` directly.
 4. **Gate** — none; read-only viewer, no artifact or gate record is produced.
 5. **Log** — none; opening the dashboard is not a delivery event.
-6. **Iterate** — re-running this command just re-opens the same file; loading a different log is done inside the page itself via "Load Claude log…".
-7. **Note** — this file is a bundled copy of the "Claude Usage Monitor" artifact published at `https://claude.ai/code/artifact/cce47a78-3918-4dc6-bbbb-32688a994f2b`. The two are not kept in sync automatically: if that hosted artifact is edited and republished, re-copy its HTML into `board/usage-monitor.html` and bump the plugin version to pick up the change.
+6. **Iterate** — re-running this command re-merges the latest logs from every project under `~/.claude/projects/` and reopens the dashboard with fresh data already loaded. The project-filter dropdown (top of page, once auto-loaded) switches between "all projects" and any single project without re-running the command. The manual "Load Claude log…" picker is still available for one-off custom files.
+7. **Note** — `board/usage-monitor.html` is a bundled copy of the "Claude Usage Monitor" artifact published at `https://claude.ai/code/artifact/cce47a78-3918-4dc6-bbbb-32688a994f2b`, plus this plugin's own auto-load/project-selector addition on top (see `plugin.json`'s notes for the version that introduced it). The bundled base is not kept in sync with the hosted artifact automatically: if that artifact is edited and republished, re-copy its HTML in, re-apply the auto-load block, and bump the plugin version.
 
-Exit condition: a browser tab open on `board/usage-monitor.html`, served as a local file.
+Exit condition: a browser tab open on `http://127.0.0.1:8791/index.html` showing real usage data merged across every project under `~/.claude/projects/`, with a project-filter dropdown in the topbar (falls back to a plain `file://` open of the static dashboard, sample data by default, if the local server path is unavailable).
