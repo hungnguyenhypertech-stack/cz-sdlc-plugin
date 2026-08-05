@@ -16,7 +16,8 @@ Built from `CZ-HARNESS-PLAN-v0.4.md` (2026-07-27). This is the Phase 0-5 scaffol
 | `config/` | `gates.yaml` (profile/concurrency/hazard config), `delegation-map.yaml`, `model-routing.yaml`, `hazard-paths.yaml`, `id-scheme.yaml` |
 | `schemas/` | JSON Schemas for the RD record, test case, telemetry event, gate record, and board state — all validated against representative instances (see Verification below) |
 | `templates/` | The 12 playbook artifacts + `UNDERSTANDING-LOG.md` + `CASE-STUDY.md` + RD/TC/gate-record/Dev-Book-entry templates, using the plan's own nightly-refresh / source-reconciliation worked example throughout. `templates/deliverables/` holds the shared `style.css` + `page.html.tmpl` every rendered deliverable reuses |
-| `board/board.html` | Single-file, self-refreshing (~3s) live board. Reads `../state/board.json`. Stalls are computed client-side from heartbeat age — no hook ever writes a stall event. Links to `../deliverables/index.html` |
+| `board/board.html` | Single-file, self-refreshing (~3s) live board — Workflow, Live board, Deliverables (RD priority/complexity/estimate-vs-actual/finished-date, plus deliverable/gate-review chips per RD), and Audit & Outcomes tabs. Reads `../state/board.json`, `../deliverables/index.json`, `../gate-records/index.json`. Stalls are computed client-side from heartbeat age — no hook ever writes a stall event |
+| `board/build-audit-index.py` | Builds `gate-records/index.json` (audit trail + outcome metrics) that the Deliverables and Audit & Outcomes tabs read — including each RD's `estimate_variance` (see `hooks/compute-estimate-variance.sh`). Re-run after `gate-records/` or `telemetry/events.jsonl` change; not on an auto-write hook |
 | `docs/` | `DELIVERABLES.md`, `PILLAR-MAP.md`, `CASAN-MAPPING.md`, `RD-GUIDE.md`, `TRACEABILITY.md`, `OPERATOR-GUIDE.md`, `LIGHTWEIGHT-MODE.md`, `SECURITY-NOTES.md` |
 
 ## Deliverables: every agent output is reviewable, in HTML

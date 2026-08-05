@@ -365,6 +365,18 @@
   .rd-state-ai_review, .rd-state-sec_review, .rd-state-human_review, .rd-state-stale { border-color: var(--amber); color: var(--amber); }
   .rd-state-draft, .rd-state-blocked_dep { color: var(--dim); }
   .rd-state-withdrawn, .rd-state-superseded { color: var(--border); text-decoration: line-through; }
+  .rd-priority {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  .rd-priority-high { border-color: var(--red); color: var(--red); }
+  .rd-priority-medium { border-color: var(--amber); color: var(--amber); }
+  .rd-priority-low { color: var(--dim); }
   .rd-pager {
     display: flex;
     align-items: center;
@@ -384,6 +396,23 @@
     cursor: pointer;
   }
   .rd-pager button:disabled { color: var(--border); cursor: default; }
+
+  /* ---------- deliverables tab ---------- */
+  .dv-cell { display: flex; flex-wrap: wrap; gap: 4px; }
+  .dv-chip {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .dv-chip:hover { background: var(--panel2); }
+  .dv-chip.dv-pass { border-color: var(--green); color: var(--green); }
+  .dv-chip.dv-fail { border-color: var(--red); color: var(--red); }
+  table.rd-table td.dv-none { color: var(--border); font-style: italic; }
 </style>
 </head>
 <body>
@@ -401,6 +430,8 @@
 <div class="tabbar">
   <button class="tab-btn active" data-tab="workflow">Workflow</button>
   <button class="tab-btn" data-tab="live">Live board</button>
+  <button class="tab-btn" data-tab="deliverables">Deliverables</button>
+  <button class="tab-btn" data-tab="audit">Audit &amp; Outcomes</button>
 </div>
 
 <!-- ================= WORKFLOW TAB ================= -->
@@ -522,14 +553,73 @@
   <div class="strip" id="strip-rows"></div>
 </div>
 
+<!-- ================= DELIVERABLES TAB ================= -->
+<div class="tab-panel" id="tab-deliverables">
+
+  <div class="wf-search">
+    <input id="dv-filter" type="text" placeholder="filter by RD id, module or summary&hellip;">
+  </div>
+
+  <div class="section-label">deliverables by RD &middot; DoR &middot; DEVBOOK &middot; gate reviews &middot; understanding-log</div>
+  <div class="rd-table-wrap">
+    <table class="rd-table">
+      <thead>
+        <tr><th>RD</th><th>Module</th><th>Status</th><th>Priority</th><th>Complexity</th><th>Estimate</th><th>Actual</th><th>Finished</th><th>Summary</th><th>Deliverables</th></tr>
+      </thead>
+      <tbody id="dv-table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="section-label">project-level deliverables &middot; not tied to a single RD</div>
+  <div class="rd-table-wrap">
+    <table class="rd-table">
+      <thead>
+        <tr><th>Kind</th><th>Agent</th><th>Updated</th><th>Link</th></tr>
+      </thead>
+      <tbody id="dv-project-table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="phase-note" id="dv-note"></div>
+</div>
+
+<!-- ================= AUDIT & OUTCOMES TAB ================= -->
+<div class="tab-panel" id="tab-audit">
+
+  <div class="section-label">outcome leadership &middot; pillar 6 metrics</div>
+  <div class="agents" id="outcome-metrics"></div>
+  <div class="rd-table-wrap" style="margin-bottom:14px;">
+    <table class="rd-table">
+      <thead><tr><th>Rollup artifact</th><th>Status</th></tr></thead>
+      <tbody id="outcome-artifacts-body"></tbody>
+    </table>
+  </div>
+
+  <div class="wf-search">
+    <input id="audit-filter" type="text" placeholder="filter audit trail by RD id or file&hellip;">
+  </div>
+  <div class="section-label">gate audit trail &middot; DoR + gate decisions, project gates first</div>
+  <div class="rd-table-wrap">
+    <table class="rd-table">
+      <thead>
+        <tr><th>Scope</th><th>ID</th><th>Kind</th><th>AI</th><th>Security</th><th>Decision</th><th>Approver</th><th>Order enforced</th><th>Timestamp</th><th>File</th></tr>
+      </thead>
+      <tbody id="audit-table-body"></tbody>
+    </table>
+  </div>
+  <div class="phase-note" id="audit-note"></div>
+</div>
+
 <div class="footer" id="footer-note">
-  Reads ../state/board.json &middot; self-refresh ~3s &middot; stalls computed here, not written by any hook (plan &sect;7.1) &middot; rebuild via /cz:rebuild-state &middot; workflow tab + agent-spawn highlighting + paginated RD table + RD filter
+  Reads ../state/board.json &middot; self-refresh ~3s &middot; stalls computed here, not written by any hook (plan &sect;7.1) &middot; rebuild via /cz:rebuild-state &middot; workflow tab + agent-spawn highlighting + paginated RD table + RD filter + Deliverables/Audit tabs
 </div>
 
 <script>
 const STALL_THRESHOLD_S = 180;      // default; overridden if board.json.concurrency.stall_threshold_s present
 const REFRESH_MS = 3000;
 const BOARD_URL = "../state/board.json";
+const DELIVERABLES_URL = "../deliverables/index.json";
+const AUDIT_URL = "../gate-records/index.json";
 
 /* ---------------- tabs ---------------- */
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -809,6 +899,246 @@ document.getElementById("rd-state-filter").addEventListener("change", (e) => {
   renderRdTable(lastRds);
 });
 
+/* ---------------- deliverables tab ---------------- */
+let lastDvRows = [];
+let dvFilterQuery = "";
+const RD_ID_RE = /RD-[A-Z0-9]+-\d+\.\d+[a-z]?/;
+
+// Older deliverables (written before frontmatter was required) have no
+// kind/rd in their YAML — fall back to inferring both from the file path
+// so they still show up grouped under their RD instead of vanishing.
+function inferRd(row) {
+  if (row.rd) return row.rd;
+  const m = row.path.match(RD_ID_RE);
+  return m ? m[0] : "";
+}
+function inferKind(row) {
+  if (row.kind) return row.kind;
+  const base = row.path.split("/").pop();
+  if (base.startsWith("DOR-")) return "DOR";
+  if (base.startsWith("DEVBOOK-")) return "DEVBOOK";
+  if (row.path.startsWith("reviews/")) return "REVIEW-GATE1";
+  if (row.path.startsWith("understanding-log/")) return "UNDERSTANDING-LOG";
+  return "OTHER";
+}
+const DV_KIND_LABEL = { DOR: "DoR", DEVBOOK: "Build", "REVIEW-GATE1": "Gate1", "UNDERSTANDING-LOG": "Log" };
+function dvChipLabel(kind, path) {
+  const label = DV_KIND_LABEL[kind] || kind || "file";
+  const m = path.match(/-(round|cycle)(\d+)/);
+  return m ? `${label}·${m[1][0]}${m[2]}` : label; // e.g. "Gate1·r2"
+}
+function dvVerdictClass(verdict) {
+  if (!verdict) return "";
+  const v = verdict.toLowerCase();
+  if (v === "pass" || v.includes("no-blocking-issues-found")) return "dv-pass";
+  if (v === "fail" || v.includes("needs-fixes")) return "dv-fail";
+  return "";
+}
+function dvChip(row) {
+  const kind = inferKind(row);
+  const cls = "dv-chip " + dvVerdictClass(row.verdict);
+  const title = [kind, row.agent, row.verdict, row.mtime].filter(Boolean).join(" · ");
+  return `<a class="${cls.trim()}" href="../deliverables/${row.html}" title="${escapeHtml(title)}">${dvChipLabel(kind, row.path)}</a>`;
+}
+const DV_KIND_ORDER = ["DOR", "DEVBOOK", "REVIEW-GATE1", "UNDERSTANDING-LOG"];
+function dvSort(a, b) {
+  const ai = DV_KIND_ORDER.indexOf(inferKind(a)), bi = DV_KIND_ORDER.indexOf(inferKind(b));
+  if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  return (a.mtime || "").localeCompare(b.mtime || "");
+}
+
+// estimateActualCell(row): row is the RD's most recent gate-kind audit row
+// (lastAuditRows, already sorted newest-first by build-audit-index.py), or
+// undefined if this RD has no gate record yet (not built, or rejected and
+// never re-approved). estimate_variance is only written on an "approved"
+// decision (see hooks/compute-estimate-variance.sh / commands/cz-gate.md
+// step 8), so a gate row existing is not enough on its own — its
+// estimated_h/active_h must also be present.
+function estimateActualCell(row) {
+  if (!row || row.estimated_h == null) return { estimate: "&mdash;", actual: "&mdash;" };
+  const estimate = `${row.estimated_h}h`;
+  if (row.active_h == null) return { estimate, actual: "&mdash;" };
+  const pct = row.variance_pct;
+  const sign = pct != null && pct > 0 ? "+" : "";
+  const pctStr = pct != null ? ` (${sign}${pct}%)` : "";
+  const color = row.within_pessimistic_bound === false ? "var(--red)"
+    : (pct != null && Math.abs(pct) > 20) ? "var(--amber)"
+    : "var(--green)";
+  const actual = `<span style="color:${color};" title="wall-clock ${row.actual_h ?? '&mdash;'}h, idle ${row.idle_h ?? '&mdash;'}h excluded">${row.active_h}h${pctStr}</span>`;
+  return { estimate, actual };
+}
+
+function renderDeliverables(rds, dvRows, auditRows) {
+  const byRd = new Map();
+  const projectRows = [];
+  dvRows.forEach(row => {
+    const rd = inferRd(row);
+    if (!rd) { projectRows.push(row); return; }
+    if (!byRd.has(rd)) byRd.set(rd, []);
+    byRd.get(rd).push(row);
+  });
+
+  // First gate-kind row per RD id — auditRows is already sorted newest-first
+  // (build-audit-index.py sorts by timestamp descending), so this naturally
+  // picks the latest gate cycle when an RD looped back through /cz:build
+  // and was gated more than once.
+  const latestGateByRd = new Map();
+  (auditRows || []).forEach(r => {
+    if (r.kind === "gate" && !latestGateByRd.has(r.id)) latestGateByRd.set(r.id, r);
+  });
+
+  const q = dvFilterQuery;
+  const tbody = document.getElementById("dv-table-body");
+  tbody.innerHTML = "";
+  const filtered = rds.filter(rd =>
+    !q ||
+    rd.id.toLowerCase().includes(q) ||
+    (rd.module || "").toLowerCase().includes(q) ||
+    (rd.summary || "").toLowerCase().includes(q)
+  );
+  filtered.forEach(rd => {
+    const rows = (byRd.get(rd.id) || []).slice().sort(dvSort);
+    const module = rd.module && rd.module !== "null" ? escapeHtml(rd.module) : "&mdash;";
+    const summary = rd.summary && rd.summary !== "null" ? escapeHtml(rd.summary) : "&mdash;";
+    const dvCell = rows.length
+      ? `<div class="dv-cell">${rows.map(dvChip).join("")}</div>`
+      : `<span class="dv-none">no deliverables yet</span>`;
+    const priority = rd.priority
+      ? `<span class="rd-priority rd-priority-${escapeHtml(rd.priority)}">${escapeHtml(rd.priority)}</span>`
+      : "&mdash;";
+    const complexity = rd.complexity ? escapeHtml(rd.complexity) : "&mdash;";
+    const finished = rd.finished_date ? new Date(rd.finished_date).toLocaleDateString() : "&mdash;";
+    const { estimate, actual } = estimateActualCell(latestGateByRd.get(rd.id));
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td class="rd-id-cell">${rd.id}</td>` +
+      `<td>${module}</td>` +
+      `<td><span class="rd-state rd-state-${rd.state}">${rd.state}</span></td>` +
+      `<td>${priority}</td>` +
+      `<td>${complexity}</td>` +
+      `<td>${estimate}</td>` +
+      `<td>${actual}</td>` +
+      `<td>${finished}</td>` +
+      `<td class="rd-summary-cell">${summary}</td>` +
+      `<td>${dvCell}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty">no RDs match</td></tr>';
+  }
+
+  const projTbody = document.getElementById("dv-project-table-body");
+  projTbody.innerHTML = "";
+  projectRows
+    .filter(row => !q || (inferKind(row) + " " + row.agent + " " + row.path).toLowerCase().includes(q))
+    .sort((a, b) => (b.mtime || "").localeCompare(a.mtime || ""))
+    .forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        `<td>${escapeHtml(inferKind(row))}</td>` +
+        `<td>${escapeHtml(row.agent || "—")}</td>` +
+        `<td>${escapeHtml(row.mtime || "—")}</td>` +
+        `<td><a href="../deliverables/${row.html}">${escapeHtml(row.path)}</a></td>`;
+      projTbody.appendChild(tr);
+    });
+  if (!projTbody.children.length) {
+    projTbody.innerHTML = '<tr><td colspan="4" class="empty">none</td></tr>';
+  }
+
+  document.getElementById("dv-note").textContent =
+    `${dvRows.length} deliverable file(s) across ${byRd.size} RD(s) · reads ${DELIVERABLES_URL}, rebuilt automatically on every deliverable write.`;
+}
+
+document.getElementById("dv-filter").addEventListener("input", (e) => {
+  dvFilterQuery = e.target.value.trim().toLowerCase();
+  renderDeliverables(lastRds, lastDvRows, lastAuditRows);
+});
+
+/* ---------------- audit & outcomes tab ---------------- */
+let lastAuditRows = [];
+let auditFilterQuery = "";
+const PCT_FMT = v => v == null ? "&mdash;" : Math.round(v * 100) + "%";
+
+function metricCard(label, value, sub) {
+  const card = document.createElement("div");
+  card.className = "agent-card";
+  card.innerHTML = `<div class="agent-name">${label}</div>` +
+    `<div class="agent-rd" style="font-size:16px;">${value}</div>` +
+    (sub ? `<div class="agent-meta">${sub}</div>` : "");
+  return card;
+}
+
+function renderOutcome(outcome) {
+  const panel = document.getElementById("outcome-metrics");
+  panel.innerHTML = "";
+  if (!outcome) {
+    panel.innerHTML = '<div class="empty">no gate-records/index.json yet — run python3 board/build-audit-index.py</div>';
+  } else {
+    panel.appendChild(metricCard("Gate decisions", outcome.gate_decisions_total ?? "&mdash;",
+      `${outcome.gate_decisions_approved ?? 0} approved`));
+    panel.appendChild(metricCard("Pass on first attempt", PCT_FMT(outcome.gate_pass_on_first_attempt_rate),
+      "of RDs with a gate decision"));
+    panel.appendChild(metricCard("Rework rate", PCT_FMT(outcome.rd_rework_rate),
+      `${outcome.rd_rework_count ?? 0} RD(s) sent back to build`));
+    panel.appendChild(metricCard("gate_rejected events", outcome.gate_rejected_events_total ?? "&mdash;",
+      "from telemetry/events.jsonl"));
+    panel.appendChild(metricCard("RDs with a gate decision", outcome.rds_with_gate_decision ?? "&mdash;", ""));
+  }
+
+  const artBody = document.getElementById("outcome-artifacts-body");
+  artBody.innerHTML = "";
+  const artifacts = (outcome && outcome.project_deliverables) || { RTM: null, WEEKLY: null, "CASE-STUDY": null };
+  Object.entries(artifacts).forEach(([kind, path]) => {
+    const tr = document.createElement("tr");
+    const status = path
+      ? `<a href="../deliverables/${escapeHtml(path.replace(/\.md$/, ".html"))}">generated &middot; ${escapeHtml(path)}</a>`
+      : '<span style="color:var(--dim);">not yet generated (produced once per wave by phase 10 / cz:report)</span>';
+    tr.innerHTML = `<td>${kind}</td><td>${status}</td>`;
+    artBody.appendChild(tr);
+  });
+}
+
+function renderAuditTable(rows) {
+  const q = auditFilterQuery;
+  const filtered = rows.filter(r =>
+    !q || r.id.toLowerCase().includes(q) || (r.file || "").toLowerCase().includes(q)
+  );
+  const tbody = document.getElementById("audit-table-body");
+  tbody.innerHTML = "";
+  filtered.forEach(r => {
+    const tr = document.createElement("tr");
+    const scopeBadge = r.scope === "project" ? "project gate" : "RD";
+    const kindCell = r.kind === "dor" ? "DoR" : r.kind === "gate" ? "Gate" : escapeHtml(r.kind || "&mdash;");
+    const aiCell = r.kind === "gate" ? escapeHtml(r.ai_verdict || "&mdash;") : (r.status ? escapeHtml(r.status) : "&mdash;");
+    const secCell = r.kind === "gate" ? escapeHtml(r.sec_verdict || "&mdash;") : "&mdash;";
+    const decisionCell = r.kind === "gate" ? escapeHtml(r.decision || "&mdash;") : "&mdash;";
+    const orderCell = r.order_enforced === true ? '<span style="color:var(--green);">&#10003;</span>'
+      : r.order_enforced === false ? '<span style="color:var(--red);">&#10007;</span>' : "&mdash;";
+    tr.innerHTML =
+      `<td>${scopeBadge}</td>` +
+      `<td class="rd-id-cell">${escapeHtml(r.id)}</td>` +
+      `<td>${kindCell}</td>` +
+      `<td>${aiCell}</td>` +
+      `<td>${secCell}</td>` +
+      `<td>${decisionCell}</td>` +
+      `<td>${escapeHtml(r.approver || "&mdash;")}</td>` +
+      `<td>${orderCell}</td>` +
+      `<td>${escapeHtml(r.timestamp || "&mdash;")}</td>` +
+      `<td><a href="../gate-records/${escapeHtml(r.file)}">${escapeHtml(r.file)}</a></td>`;
+    tbody.appendChild(tr);
+  });
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty">no audit records match</td></tr>';
+  }
+  document.getElementById("audit-note").textContent =
+    `${rows.length} audit record(s) · reads ${AUDIT_URL} · regenerate via python3 board/build-audit-index.py after gate-records/ or telemetry changes.`;
+}
+
+document.getElementById("audit-filter").addEventListener("input", (e) => {
+  auditFilterQuery = e.target.value.trim().toLowerCase();
+  renderAuditTable(lastAuditRows);
+});
+
 async function refresh() {
   let data;
   try {
@@ -877,6 +1207,30 @@ async function refresh() {
 
   lastRds = data.rds || [];
   renderRdTable(lastRds);
+
+  // Audit rows fetched before deliverables render because renderDeliverables'
+  // Estimate/Actual columns look up each RD's latest gate record from this
+  // same data — the Deliverables tab is a consumer of the Audit & Outcomes
+  // tab's source, not independent of it.
+  try {
+    const auditRes = await fetch(AUDIT_URL, { cache: "no-store" });
+    const auditData = await auditRes.json();
+    lastAuditRows = auditData.audit || [];
+    renderOutcome(auditData.outcome);
+  } catch (e) {
+    lastAuditRows = [];
+    renderOutcome(null);
+  }
+  renderAuditTable(lastAuditRows);
+
+  try {
+    const dvRes = await fetch(DELIVERABLES_URL, { cache: "no-store" });
+    lastDvRows = await dvRes.json();
+  } catch (e) {
+    lastDvRows = [];
+  }
+  renderDeliverables(lastRds, lastDvRows, lastAuditRows);
+
   document.getElementById("phase-note").textContent =
     "Phases 7 (DoR), 8 (Build), 9 (Gate) run per-RD, not once per project — tracked in the RD board below, not here. Full pipeline shape (incl. agent spawns) is under the Workflow tab.";
 
@@ -954,7 +1308,7 @@ async function refresh() {
   }
 
   document.getElementById("footer-note").textContent =
-    `Reads ${BOARD_URL} · self-refresh ~3s · stalls computed here (threshold ${stallThreshold}s), not written by any hook · rebuild via /cz:rebuild-state · v2: workflow tab + agent-spawn highlighting + RD filter`;
+    `Reads ${BOARD_URL} · self-refresh ~3s · stalls computed here (threshold ${stallThreshold}s), not written by any hook · rebuild via /cz:rebuild-state · v3: workflow tab + agent-spawn highlighting + RD filter + Deliverables/Audit tabs`;
 }
 
 refresh();
