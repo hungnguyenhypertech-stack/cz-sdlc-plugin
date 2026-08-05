@@ -102,6 +102,24 @@
             "timestamp": { "type": "string", "format": "date-time" }
           },
           "additionalProperties": true
+        },
+        "estimate_variance": {
+          "type": "object",
+          "description": "Only present when gate_decision.decision is \"approved\" — written by hooks/compute-estimate-variance.sh at /cz:gate step 8, before the lock is released. Compares planner's pre-build estimate.expected_h/.pessimistic (rd/<id>.md) against this RD's actual build time, derived purely from telemetry/events.jsonl timestamps already recorded for this rd id — no new capture mechanism, no token figures (Claude Code hooks have no real per-RD token/cost source; see emit-telemetry.sh's cost_usd comment). This is the audit point a later /cz:audit run or agentops WEEKLY rollup reads to judge whether planner's estimates run systematically high or low.",
+          "properties": {
+            "rd_id": { "type": "string" },
+            "estimated_h": { "type": ["number", "null"] },
+            "optimistic_h": { "type": ["number", "null"] },
+            "pessimistic_h": { "type": ["number", "null"] },
+            "actual_h": { "type": ["number", "null"], "description": "Raw wall-clock span (first-to-last telemetry timestamp for this rd), including any idle/blocked time. Kept for throughput reporting; NOT what variance_pct is computed against." },
+            "active_h": { "type": ["number", "null"], "description": "actual_h with idle/blocked gaps longer than idle_gap_threshold_s excluded (e.g. queued behind max_in_flight, waiting on a human gate, overnight). This is the work-effort figure variance_pct and within_pessimistic_bound are computed against, since the RD estimate is a work-effort guess, not a wall-clock promise." },
+            "idle_h": { "type": ["number", "null"], "description": "actual_h - active_h. Time excluded as idle/blocked, not attributed to work on this RD." },
+            "idle_gap_threshold_s": { "type": ["integer", "null"], "description": "Gap length (seconds) above which a span between two consecutive telemetry events for this RD is treated as idle rather than active. Defaults to guard-claim-lock.sh's LOCK_TTL_S (1800) — the same threshold past which the plugin already considers a claim no longer actively held. Overridable per run via CZ_IDLE_GAP_THRESHOLD_S." },
+            "variance_pct": { "type": ["number", "null"], "description": "(active_h - estimated_h) / estimated_h * 100. Positive means the RD took more active work time than planner expected." },
+            "within_pessimistic_bound": { "type": ["boolean", "null"], "description": "true if active_h <= pessimistic_h." },
+            "note": { "type": "string", "description": "Present instead of numeric fields when a value genuinely could not be computed (no estimate on record, no telemetry found) — an honest null, not a silently skipped field." }
+          },
+          "additionalProperties": true
         }
       },
       "additionalProperties": true
