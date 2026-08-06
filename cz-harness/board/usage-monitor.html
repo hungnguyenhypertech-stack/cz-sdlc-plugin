@@ -1897,7 +1897,7 @@ renderAll();
 /* ===== optional: auto-load per-project merged logs when served over http(s) =====
    No-op under file:// (the default when opened directly) — sample data and the
    manual "Load Claude log..." picker behave exactly as before in that case.
-   Activated by board/serve-usage-monitor.sh, which merges ~/.claude/projects/*/
+   Activated by board/serve-usage-monitor.sh, which merges each ~/.claude/projects subfolder's
    session logs into manifest.json + merged/*.jsonl next to this file and serves
    it locally so fetch() is allowed. */
 (function(){
