@@ -397,6 +397,65 @@
     display: flex; align-items: center; gap: 8px;
   }
   .toast.show{ opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+  tr.row-clickable{ cursor: pointer; }
+  tr.row-clickable:hover td{ background: var(--surface-2); }
+
+  .modal-backdrop{
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 300;
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 40px 20px; overflow-y: auto;
+  }
+  .modal-backdrop.show{ display: flex; }
+  .modal{
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-l, 12px);
+    width: 100%; max-width: 900px; max-height: calc(100vh - 80px); overflow: hidden;
+    display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-head{ display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); flex: none; }
+  .modal-title{ font-size: 15px; font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+  .modal-sub{ font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px; }
+  .modal-close{
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary);
+    border-radius: var(--radius-s); width: 28px; height: 28px; flex: none; cursor: pointer; font-size: 13px;
+  }
+  .modal-close:hover{ color: var(--text-primary); border-color: var(--border-strong); }
+  .modal-stats{ display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); flex: none; }
+  .modal-stat{ background: var(--surface-1); padding: 10px 14px; }
+  .modal-stat-label{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .modal-stat-value{ font-size: 13.5px; font-family: var(--font-mono); color: var(--text-primary); margin-top: 2px; }
+  .modal-body{ overflow-y: auto; padding: 16px 20px 24px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
+
+  .tl-item{ border: 1px solid var(--border); border-radius: var(--radius-s); background: var(--surface-2); }
+  .tl-row{ display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; }
+  .tl-time{ font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); white-space: nowrap; padding-top: 2px; flex: none; width: 62px; }
+  .tl-kind{ flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; }
+  .tl-kind.prompt{ background: var(--s1, #3987e5); }
+  .tl-kind.tool{ background: var(--text-muted); }
+  .tl-kind.agent{ background: #9085e9; }
+  .tl-kind.skill{ background: #199e70; }
+  .tl-main{ flex: 1; min-width: 0; }
+  .tl-label{ font-size: 12.5px; color: var(--text-primary); }
+  .tl-label b{ font-weight: 600; }
+  .tl-text{ font-size: 12px; color: var(--text-secondary); margin-top: 3px; white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .tl-text.expanded{ -webkit-line-clamp: unset; }
+  .tl-toggle{ cursor: pointer; border-bottom: 1px dotted var(--text-muted); width: fit-content; }
+  .tl-meta{ font-size: 10.5px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono); }
+  .tl-expand-btn{
+    background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer;
+    padding: 0; margin-top: 4px; text-decoration: underline dotted;
+  }
+  .tl-expand-btn:hover{ color: var(--text-primary); }
+  .tl-steps{ display: none; flex-direction: column; gap: 6px; padding: 0 12px 10px 30px; border-top: 1px solid var(--border); margin-top: 2px; padding-top: 8px; }
+  .tl-steps.show{ display: flex; }
+  .tl-step{ font-size: 11.5px; padding: 6px 10px; border-radius: var(--radius-s); background: var(--surface-1); border: 1px solid var(--border); }
+  .tl-step-kind{ font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 3px; }
+  .tl-step.thinking{ font-style: italic; color: var(--text-muted); }
+  .tl-step.tool_use .tl-step-kind{ color: #9085e9; }
+  .tl-step.tool_result.is-error{ border-color: var(--critical); }
+  .tl-step.tool_result.is-error .tl-step-kind{ color: var(--critical); }
+  .tl-step pre{ white-space: pre-wrap; word-break: break-word; margin: 0; font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); max-height: 160px; overflow-y: auto; }
+  .tl-empty{ color: var(--text-muted); font-size: 12.5px; padding: 20px; text-align: center; }
   .toast .dot{ width: 7px; height: 7px; border-radius: 50%; background: var(--good); flex: none; }
 
   .rates-grid{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
@@ -681,6 +740,20 @@
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast"><span class="dot"></span><span id="toastText"></span></div>
 
+<div class="modal-backdrop" id="sessionModalBackdrop">
+  <div class="modal" id="sessionModal" role="dialog" aria-modal="true" aria-label="Session detail">
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-sub" id="modalSub"></div>
+      </div>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-stats" id="modalStats"></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
 <script>
 (function(){
 "use strict";
@@ -940,7 +1013,7 @@ function parseLogText(text, dataset, fileLabel){
             if (kind === "agent" && block.input && block.input.subagent_type) name = block.input.subagent_type;
             dataset.toolCalls.push({ ts: ts, sessionId: sessionId, name: name, kind: kind });
             if (kind !== "tool"){
-              pendingRuns[block.id] = { ts: ts, sessionId: sessionId, name: name, type: kind, status: "running", durationMs: 0, result: "In progress", _resolved: false };
+              pendingRuns[block.id] = { ts: ts, sessionId: sessionId, name: name, type: kind, status: "running", durationMs: 0, result: "In progress", _resolved: false, toolUseId: block.id };
               dataset.runs.push(pendingRuns[block.id]);
             }
           }
@@ -1049,7 +1122,8 @@ var state = {
   plan: "max20",
   planLimit: PLAN_BUDGETS.max20,
   rates: JSON.parse(JSON.stringify(DEFAULT_RATES)),
-  gran: "day"
+  gran: "day",
+  subagentsBySession: {} // sessionId -> [{agentId, toolUseId, agentType, description, spawnDepth, steps}]; auto-load only
 };
 
 function currentRange(){
@@ -1576,7 +1650,8 @@ function renderAgentTable(view){
     return;
   }
   rows.forEach(function(r){
-    var tr = el("tr");
+    var tr = el("tr", {class:"row-clickable"});
+    tr.addEventListener("click", function(){ openSessionModal(r.sessionId); });
     tr.appendChild(el("td", {class:"mono", text: r.name}));
     tr.appendChild(el("td", {text: r.type}));
     var s = lookup.byId[r.sessionId] || { id: r.sessionId, cwd: null, entrypoint: null };
@@ -1807,13 +1882,14 @@ function sessionCell(s, firstPrompt){
   titleEl.tabIndex = 0;
   titleEl.setAttribute("role", "button");
   titleEl.setAttribute("aria-expanded", "false");
-  var toggleTitle = function(){
+  var toggleTitle = function(e){
+    if (e) e.stopPropagation();
     var expanded = titleEl.classList.toggle("expanded");
     titleEl.setAttribute("aria-expanded", expanded ? "true" : "false");
   };
   titleEl.addEventListener("click", toggleTitle);
   titleEl.addEventListener("keydown", function(e){
-    if (e.key === "Enter" || e.key === " "){ e.preventDefault(); toggleTitle(); }
+    if (e.key === "Enter" || e.key === " "){ e.preventDefault(); toggleTitle(e); }
   });
   var metaBits = [s.id.slice(0,8)];
   if (proj) metaBits.push(proj);
@@ -1868,7 +1944,8 @@ function renderSessionTable(view){
     return;
   }
   rows.forEach(function(s){
-    var tr = el("tr");
+    var tr = el("tr", {class:"row-clickable"});
+    tr.addEventListener("click", function(){ openSessionModal(s.id); });
     tr.appendChild(sessionCell(s, lookup.firstPromptBySession[s.id]));
     tr.appendChild(el("td", {class:"mono", text: fmtDateTime(s.start)}));
     tr.appendChild(el("td", {class:"num", text: fmtDuration(Math.max(0,s.end-s.start))}));
@@ -1894,6 +1971,135 @@ function renderSessionTable(view){
     tbody.appendChild(tr);
   });
 }
+
+/* ============================== SESSION DETAIL MODAL ============================== */
+
+function getSessionRecord(sessionId){
+  var found = null;
+  (state.dataset.sessions || []).some(function(s){ if (s.id === sessionId){ found = s; return true; } return false; });
+  return found;
+}
+
+function renderStep(step){
+  var kindClass = step.kind + (step.isError ? " is-error" : "");
+  var stepEl = el("div", {class:"tl-step " + kindClass});
+  var kindLabel = step.kind === "tool_use" ? ("TOOL_USE · " + step.name)
+    : step.kind === "tool_result" ? ("TOOL_RESULT" + (step.isError ? " · ERROR" : ""))
+    : step.kind.toUpperCase();
+  stepEl.appendChild(el("div", {class:"tl-step-kind", text: kindLabel}));
+  var text = step.kind === "tool_use" ? step.input : step.text;
+  stepEl.appendChild(el("pre", {text: text || ""}));
+  return stepEl;
+}
+
+function renderTimelineItem(item, subagentsByToolUseId){
+  var wrap = el("div", {class:"tl-item"});
+  var row = el("div", {class:"tl-row"});
+  row.appendChild(el("div", {class:"tl-time", text: item.ts ? new Date(item.ts).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit", second:"2-digit"}) : "—"}));
+  var kindDotClass = item.kind === "prompt" ? "prompt" : (item.kind === "agent" ? "agent" : (item.kind === "skill" ? "skill" : "tool"));
+  row.appendChild(el("div", {class:"tl-kind " + kindDotClass}));
+  var main = el("div", {class:"tl-main"});
+
+  if (item.kind === "prompt"){
+    var p = item.data;
+    var label = el("div", {class:"tl-label"});
+    label.appendChild(el("b", {text:"Prompt"}));
+    if (p.category) label.appendChild(document.createTextNode(" · " + p.category));
+    main.appendChild(label);
+    var textEl = el("div", {class:"tl-text tl-toggle", text: p.text});
+    textEl.addEventListener("click", function(){ textEl.classList.toggle("expanded"); });
+    main.appendChild(textEl);
+  } else if (item.kind === "tool"){
+    main.appendChild(el("div", {class:"tl-label", text: item.data.name}));
+  } else {
+    var r = item.data;
+    var label2 = el("div", {class:"tl-label"});
+    label2.appendChild(el("b", {text: r.name}));
+    label2.appendChild(document.createTextNode(" · " + r.type));
+    main.appendChild(label2);
+    var metaBits = [r.status, fmtDuration(r.durationMs||0)];
+    if (r.result) metaBits.push(r.result);
+    main.appendChild(el("div", {class:"tl-meta", text: metaBits.join(" · ")}));
+
+    var sub = r.toolUseId ? subagentsByToolUseId[r.toolUseId] : null;
+    if (sub && sub.steps && sub.steps.length){
+      var btn = el("button", {class:"tl-expand-btn", text: "Show " + sub.steps.length + " trajectory steps ▾"});
+      var stepsWrap = el("div", {class:"tl-steps"});
+      sub.steps.forEach(function(step){ stepsWrap.appendChild(renderStep(step)); });
+      btn.addEventListener("click", function(){
+        var showing = stepsWrap.classList.toggle("show");
+        btn.textContent = (showing ? "Hide " : "Show ") + sub.steps.length + " trajectory steps " + (showing ? "▴" : "▾");
+      });
+      main.appendChild(btn);
+      main.appendChild(stepsWrap);
+    } else if (r.type === "agent" || r.type === "skill"){
+      main.appendChild(el("div", {class:"tl-meta", text:"Trajectory detail not available (needs the auto-loaded local server, not manual file upload)."}));
+    }
+  }
+  row.appendChild(main);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function openSessionModal(sessionId){
+  var s = getSessionRecord(sessionId);
+  if (!s) return;
+  var ds = state.dataset;
+  var prompts = ds.prompts.filter(function(p){ return p.sessionId === sessionId; }).sort(function(a,b){ return a.ts-b.ts; });
+  var toolCalls = ds.toolCalls.filter(function(t){ return t.sessionId === sessionId; });
+  var runs = ds.runs.filter(function(r){ return r.sessionId === sessionId; });
+  var subagentRuns = state.subagentsBySession[sessionId] || [];
+  var subagentsByToolUseId = {};
+  subagentRuns.forEach(function(sr){ if (sr.toolUseId) subagentsByToolUseId[sr.toolUseId] = sr; });
+
+  $("#modalTitle").textContent = sessionTitle(s, prompts[0]);
+  var proj = (s.cwd && s.cwd !== "unknown") ? s.cwd.split("/").filter(Boolean).pop() : null;
+  $("#modalSub").textContent = [s.id, proj, s.entrypoint].filter(Boolean).join(" · ");
+
+  var statsGrid = $("#modalStats"); statsGrid.innerHTML = "";
+  function stat(label, value){
+    var d = el("div", {class:"modal-stat"});
+    d.appendChild(el("div", {class:"modal-stat-label", text:label}));
+    d.appendChild(el("div", {class:"modal-stat-value", text:value}));
+    statsGrid.appendChild(d);
+  }
+  stat("Duration", fmtDuration(Math.max(0, s.end-s.start)));
+  stat("Started", fmtDateTime(s.start));
+  stat("Prompts", fmtInt(prompts.length));
+  stat("Tokens", fmtCompact((s.tokensIn||0)+(s.tokensOut||0)));
+  var cacheTotal = (s.cacheRead||0)+(s.tokensIn||0);
+  stat("Cache hit", cacheTotal ? fmtPct((s.cacheRead||0)/cacheTotal) : "—");
+  stat("Peak context", s.peakContextTokens ? fmtPct(clamp(s.peakContextTokens/CONTEXT_WINDOW_TOKENS,0,1)) : "—");
+  var activeIdleTotal = (s.activeMs||0)+(s.idleMs||0);
+  stat("Idle rate", activeIdleTotal ? fmtPct(s.idleMs/activeIdleTotal) : "—");
+
+  var items = [];
+  prompts.forEach(function(p){ items.push({ ts: p.ts, kind: "prompt", data: p }); });
+  toolCalls.forEach(function(t){ if (t.kind === "tool") items.push({ ts: t.ts, kind: "tool", data: t }); });
+  runs.forEach(function(r){ items.push({ ts: r.ts, kind: r.type, data: r }); });
+  items.sort(function(a,b){ return a.ts-b.ts; });
+
+  var body = $("#modalBody"); body.innerHTML = "";
+  if (!items.length){
+    body.appendChild(el("div", {class:"tl-empty", text:"No prompts or tool activity recorded for this session."}));
+  } else {
+    items.forEach(function(item){ body.appendChild(renderTimelineItem(item, subagentsByToolUseId)); });
+  }
+
+  $("#sessionModalBackdrop").classList.add("show");
+}
+
+function closeSessionModal(){
+  $("#sessionModalBackdrop").classList.remove("show");
+}
+
+$("#modalClose").addEventListener("click", closeSessionModal);
+$("#sessionModalBackdrop").addEventListener("click", function(e){
+  if (e.target === e.currentTarget) closeSessionModal();
+});
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape" && $("#sessionModalBackdrop").classList.contains("show")) closeSessionModal();
+});
 
 /* ============================== TOP-LEVEL RENDER ============================== */
 
@@ -2040,6 +2246,7 @@ renderAll();
   if (location.protocol !== "http:" && location.protocol !== "https:") return;
 
   var cache = {};   // project name -> raw jsonl text
+  var subagentsCache = {}; // project name -> { sessionId: [runs] }
   var order = [];   // project names in manifest order
 
   function buildDataset(names){
@@ -2051,10 +2258,21 @@ renderAll();
     return dataset;
   }
 
+  function buildSubagentsBySession(names){
+    var merged = {};
+    names.forEach(function(name){
+      var bySession = subagentsCache[name];
+      if (!bySession) return;
+      Object.keys(bySession).forEach(function(sid){ merged[sid] = bySession[sid]; });
+    });
+    return merged;
+  }
+
   function applySelection(names){
     var dataset = buildDataset(names);
     if (!dataset.events.length) { showToast("No usable events for that selection."); return; }
     state.dataset = dataset;
+    state.subagentsBySession = buildSubagentsBySession(names);
     state.rangeDays = "all";
     state.customFrom = null; state.customTo = null;
     $all("button", $("#rangeSeg")).forEach(function(b){ b.classList.toggle("active", b.dataset.range === "all"); });
@@ -2091,15 +2309,22 @@ renderAll();
     var actions = document.querySelector(".topbar-actions");
     if (actions) actions.insertBefore(select, actions.firstChild);
 
-    var remaining = files.length;
+    var pending = [];
     files.forEach(function(p){
-      fetch(p.file).then(function(r){ return r.text(); }).then(function(text){
-        cache[p.name] = text;
-      }).catch(function(){}).finally(function(){
-        remaining--;
-        if (remaining === 0) applySelection(order);
-      });
+      pending.push(
+        fetch(p.file).then(function(r){ return r.text(); }).then(function(text){
+          cache[p.name] = text;
+        }).catch(function(){})
+      );
+      if (p.subagentsFile){
+        pending.push(
+          fetch(p.subagentsFile).then(function(r){ return r.json(); }).then(function(json){
+            subagentsCache[p.name] = json || {};
+          }).catch(function(){})
+        );
+      }
     });
+    Promise.all(pending).then(function(){ applySelection(order); });
   }).catch(function(){});
 })();
 /* ===== end optional auto-load block ===== */
