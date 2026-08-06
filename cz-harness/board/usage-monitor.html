@@ -434,6 +434,7 @@
   .tl-kind.tool{ background: var(--text-muted); }
   .tl-kind.agent{ background: #9085e9; }
   .tl-kind.skill{ background: #199e70; }
+  .tl-kind.reply{ background: #c98500; }
   .tl-main{ flex: 1; min-width: 0; }
   .tl-label{ font-size: 12.5px; color: var(--text-primary); }
   .tl-label b{ font-weight: 600; }
@@ -885,11 +886,20 @@ var PROMPT_SNIPPETS = {
   Other: ["what time zone is this server in","can you explain how this works","give me a second opinion on this","what's left before we can ship"]
 };
 
+var REPLY_SNIPPETS = [
+  "Found it — the issue was in the error-handling branch, fixed and verified.",
+  "Done. I updated the file and re-ran the tests, all passing now.",
+  "Here's what I found after checking the logs — summarized the key points above.",
+  "That should cover it. Let me know if you want me to also update the docs.",
+  "I've made the change and confirmed it works as expected.",
+  "Investigated the root cause — it was a stale cache entry, cleared and re-verified."
+];
+
 function generateMockDataset(){
   var rnd = seededRand(20260727);
   var now = Date.now();
   var days = 60;
-  var events = [], toolCalls = [], runs = [], prompts = [], sessionMeta = [];
+  var events = [], toolCalls = [], runs = [], prompts = [], assistantMessages = [], sessionMeta = [];
   var sessionCounter = 0;
 
   for (var d = days; d >= 0; d--){
@@ -957,6 +967,10 @@ function generateMockDataset(){
           if (rnd() < 0.3) text += " — " + pool[Math.floor(rnd()*pool.length)];
           prompts.push({ ts: cur, sessionId: sid, text: text, length: text.length + Math.floor(rnd()*80), category: cat });
         }
+        if (rnd() < 0.5){
+          var reply = REPLY_SNIPPETS[Math.floor(rnd()*REPLY_SNIPPETS.length)];
+          assistantMessages.push({ ts: cur + 1000, sessionId: sid, text: reply });
+        }
       }
       var sessionEnd = cur + 20000;
       activeMs += 20000;
@@ -970,7 +984,7 @@ function generateMockDataset(){
       });
     }
   }
-  return { source: "mock", events: events, toolCalls: toolCalls, runs: runs, prompts: prompts, sessions: sessionMeta };
+  return { source: "mock", events: events, toolCalls: toolCalls, runs: runs, prompts: prompts, assistantMessages: assistantMessages, sessions: sessionMeta };
 }
 
 /* ============================== LOG PARSER ============================== */
@@ -1016,6 +1030,8 @@ function parseLogText(text, dataset, fileLabel){
               pendingRuns[block.id] = { ts: ts, sessionId: sessionId, name: name, type: kind, status: "running", durationMs: 0, result: "In progress", _resolved: false, toolUseId: block.id };
               dataset.runs.push(pendingRuns[block.id]);
             }
+          } else if (block && block.type === "text" && block.text && block.text.trim() && !isNaN(ts)){
+            dataset.assistantMessages.push({ ts: ts, sessionId: sessionId, text: block.text.trim() });
           }
         }
       }
@@ -1066,6 +1082,7 @@ function finalizeSessions(dataset){
   });
   dataset.prompts.forEach(function(p){ touch(p.sessionId, p.ts); });
   dataset.toolCalls.forEach(function(t){ touch(t.sessionId, t.ts); });
+  (dataset.assistantMessages||[]).forEach(function(m){ touch(m.sessionId, m.ts); });
 
   dataset.sessions = Object.keys(bySession).map(function(sid){
     var s = bySession[sid];
@@ -1089,7 +1106,7 @@ function finalizeSessions(dataset){
 }
 
 function parseFiles(fileList, cb){
-  var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], sessions: [] };
+  var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], assistantMessages: [], sessions: [] };
   var files = Array.prototype.slice.call(fileList);
   var remaining = files.length;
   if (!remaining){ cb(null); return; }
@@ -1996,7 +2013,7 @@ function renderTimelineItem(item, subagentsByToolUseId){
   var wrap = el("div", {class:"tl-item"});
   var row = el("div", {class:"tl-row"});
   row.appendChild(el("div", {class:"tl-time", text: item.ts ? new Date(item.ts).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit", second:"2-digit"}) : "—"}));
-  var kindDotClass = item.kind === "prompt" ? "prompt" : (item.kind === "agent" ? "agent" : (item.kind === "skill" ? "skill" : "tool"));
+  var kindDotClass = item.kind === "prompt" ? "prompt" : (item.kind === "reply" ? "reply" : (item.kind === "agent" ? "agent" : (item.kind === "skill" ? "skill" : "tool")));
   row.appendChild(el("div", {class:"tl-kind " + kindDotClass}));
   var main = el("div", {class:"tl-main"});
 
@@ -2009,6 +2026,12 @@ function renderTimelineItem(item, subagentsByToolUseId){
     var textEl = el("div", {class:"tl-text tl-toggle", text: p.text});
     textEl.addEventListener("click", function(){ textEl.classList.toggle("expanded"); });
     main.appendChild(textEl);
+  } else if (item.kind === "reply"){
+    var m = item.data;
+    main.appendChild(el("div", {class:"tl-label"}, [el("b", {text:"Claude"})]));
+    var replyEl = el("div", {class:"tl-text tl-toggle", text: m.text});
+    replyEl.addEventListener("click", function(){ replyEl.classList.toggle("expanded"); });
+    main.appendChild(replyEl);
   } else if (item.kind === "tool"){
     main.appendChild(el("div", {class:"tl-label", text: item.data.name}));
   } else {
@@ -2048,6 +2071,7 @@ function openSessionModal(sessionId){
   var prompts = ds.prompts.filter(function(p){ return p.sessionId === sessionId; }).sort(function(a,b){ return a.ts-b.ts; });
   var toolCalls = ds.toolCalls.filter(function(t){ return t.sessionId === sessionId; });
   var runs = ds.runs.filter(function(r){ return r.sessionId === sessionId; });
+  var replies = (ds.assistantMessages||[]).filter(function(m){ return m.sessionId === sessionId; });
   var subagentRuns = state.subagentsBySession[sessionId] || [];
   var subagentsByToolUseId = {};
   subagentRuns.forEach(function(sr){ if (sr.toolUseId) subagentsByToolUseId[sr.toolUseId] = sr; });
@@ -2075,6 +2099,7 @@ function openSessionModal(sessionId){
 
   var items = [];
   prompts.forEach(function(p){ items.push({ ts: p.ts, kind: "prompt", data: p }); });
+  replies.forEach(function(m){ items.push({ ts: m.ts, kind: "reply", data: m }); });
   toolCalls.forEach(function(t){ if (t.kind === "tool") items.push({ ts: t.ts, kind: "tool", data: t }); });
   runs.forEach(function(r){ items.push({ ts: r.ts, kind: r.type, data: r }); });
   items.sort(function(a,b){ return a.ts-b.ts; });
@@ -2250,7 +2275,7 @@ renderAll();
   var order = [];   // project names in manifest order
 
   function buildDataset(names){
-    var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], sessions: [] };
+    var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], assistantMessages: [], sessions: [] };
     names.forEach(function(name){
       if (cache[name]) parseLogText(cache[name], dataset, name);
     });
