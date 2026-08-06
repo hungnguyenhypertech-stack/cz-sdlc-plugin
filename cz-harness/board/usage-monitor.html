@@ -295,6 +295,9 @@
   td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
   td.mono{ font-family: var(--font-mono); font-size: 11.5px; color: var(--text-primary); }
   .table-scroll{ overflow-x: auto; }
+  td.sess-cell{ white-space: normal; max-width: 320px; }
+  .sess-title{ color: var(--text-primary); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+  .sess-meta{ color: var(--text-muted); font-size: 10.5px; font-family: var(--font-mono); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   tbody tr:hover td{ background: var(--surface-2); }
 
   .pill{
@@ -686,6 +689,7 @@ var CATEGORY_ORDER = ["Coding","Analysis","Writing","Design","Planning","Other"]
 var CATEGORY_COLOR = { Coding: PALETTE.s1, Analysis: PALETTE.s2, Writing: PALETTE.s3, Design: PALETTE.s4, Planning: PALETTE.s5, Other: PALETTE.other };
 var HEAT_STEPS = ["#17171a","#173254","#1b4c82","#2168b3","#2a78d6","#4a9bef"];
 var DAY_MS = 86400000;
+var IDLE_GAP_MS = 180000; // gaps between turns under this are "agent run time"; overage is "idle"
 
 var PLAN_BUDGETS = { pro: 6000000, max5: 30000000, max20: 90000000, team: 60000000, custom: 45000000 };
 
@@ -824,11 +828,14 @@ function generateMockDataset(){
       var turns = 4 + Math.floor(rnd()*28);
       var cur = sessionStart;
       var totalIn=0, totalOut=0, totalCacheRead=0;
+      var activeMs = 0, idleMs = 0;
       var models = {}; models[modelKey(primaryModel)] = true;
 
       for (var t = 0; t < turns; t++){
         var gap = 30000 + rnd()*240000;
         cur += gap;
+        activeMs += Math.min(gap, IDLE_GAP_MS);
+        idleMs += Math.max(0, gap - IDLE_GAP_MS);
         var thisModel = primaryModel;
         if (rnd() < 0.06){ thisModel = "claude-haiku-4-5"; models.Haiku = true; }
         var mk = modelKey(thisModel);
@@ -863,12 +870,14 @@ function generateMockDataset(){
         }
       }
       var sessionEnd = cur + 20000;
+      activeMs += 20000;
       sessionMeta.push({
         id: sid, start: sessionStart, end: sessionEnd,
         cwd: "/Users/hungnguyen/Claude project/AI bootcamp",
         entrypoint: rnd() < 0.5 ? "cli" : (rnd() < 0.8 ? "claude-desktop" : "vscode"),
         models: Object.keys(models),
-        tokensIn: totalIn, tokensOut: totalOut, cacheRead: totalCacheRead
+        tokensIn: totalIn, tokensOut: totalOut, cacheRead: totalCacheRead,
+        activeMs: activeMs, idleMs: idleMs
       });
     }
   }
@@ -952,9 +961,10 @@ function parseLogText(text, dataset, fileLabel){
 function finalizeSessions(dataset){
   var bySession = {};
   function touch(sid, ts){
-    if (!bySession[sid]) bySession[sid] = { id: sid, start: ts, end: ts, tokensIn:0, tokensOut:0, cacheRead:0, models: {} };
+    if (!bySession[sid]) bySession[sid] = { id: sid, start: ts, end: ts, tokensIn:0, tokensOut:0, cacheRead:0, models: {}, allTs: [] };
     if (ts < bySession[sid].start) bySession[sid].start = ts;
     if (ts > bySession[sid].end) bySession[sid].end = ts;
+    bySession[sid].allTs.push(ts);
   }
   dataset.events.forEach(function(e){
     touch(e.sessionId, e.ts);
@@ -969,12 +979,20 @@ function finalizeSessions(dataset){
   dataset.sessions = Object.keys(bySession).map(function(sid){
     var s = bySession[sid];
     var meta = (dataset._sessionMeta || {})[sid] || {};
+    var ts = s.allTs.slice().sort(function(a,b){ return a-b; });
+    var activeMs = 0, idleMs = 0;
+    for (var i = 1; i < ts.length; i++){
+      var gap = ts[i] - ts[i-1];
+      activeMs += Math.min(gap, IDLE_GAP_MS);
+      idleMs += Math.max(0, gap - IDLE_GAP_MS);
+    }
     return {
       id: sid, start: s.start, end: s.end,
       cwd: meta.cwd || "unknown",
       entrypoint: meta.entrypoint || "cli",
       models: Object.keys(s.models),
-      tokensIn: s.tokensIn, tokensOut: s.tokensOut, cacheRead: s.cacheRead
+      tokensIn: s.tokensIn, tokensOut: s.tokensOut, cacheRead: s.cacheRead,
+      activeMs: activeMs, idleMs: idleMs
     };
   });
 }
@@ -1533,6 +1551,7 @@ function renderFeatureStrip(view){
 function renderAgentTable(view){
   var tbody = $("#agentTable tbody");
   tbody.innerHTML = "";
+  var lookup = buildSessionLookup(view);
   var rows = view.runs.slice().sort(function(a,b){ return b.ts-a.ts; }).slice(0,25);
   if (!rows.length){
     var tr0 = el("tr"); var td0 = el("td", {text:"No agent or skill runs in range"}); td0.colSpan = 7; td0.style.color="var(--text-muted)"; tr0.appendChild(td0); tbody.appendChild(tr0);
@@ -1542,7 +1561,8 @@ function renderAgentTable(view){
     var tr = el("tr");
     tr.appendChild(el("td", {class:"mono", text: r.name}));
     tr.appendChild(el("td", {text: r.type}));
-    tr.appendChild(el("td", {class:"mono", text: r.sessionId.replace("sess-","#")}));
+    var s = lookup.byId[r.sessionId] || { id: r.sessionId, cwd: null, entrypoint: null };
+    tr.appendChild(sessionCell(s, lookup.firstPromptBySession[r.sessionId]));
     var statusTd = el("td");
     var pill = el("span", { class:"pill " + r.status });
     pill.appendChild(el("span", {class:"dot"}));
@@ -1720,7 +1740,51 @@ function renderSessionsSection(view){
   var totalPrompts = view.prompts.length;
   grid.appendChild(statTile("Prompts / session", sessions.length ? (totalPrompts/sessions.length).toFixed(1) : "0", null, null, "avg across range"));
 
+  var totalActive = sessions.reduce(function(a,s){ return a + (s.activeMs||0); }, 0);
+  var totalIdle = sessions.reduce(function(a,s){ return a + (s.idleMs||0); }, 0);
+  var idleRate = (totalActive + totalIdle) > 0 ? totalIdle/(totalActive + totalIdle) : 0;
+  grid.appendChild(statTile("Agent run time", fmtDuration(totalActive), null, null, "sum of turn gaps ≤ " + fmtDuration(IDLE_GAP_MS)));
+  grid.appendChild(statTile("Idle time", fmtDuration(totalIdle), null, null, "sum of turn gaps > " + fmtDuration(IDLE_GAP_MS)));
+  grid.appendChild(statTile("Idle rate", fmtPct(idleRate), null, null, "idle ÷ (idle + agent run)"));
+
   renderSessionTable(view);
+}
+
+function sessionTitle(s, firstPrompt){
+  var text = firstPrompt ? firstPrompt.text.trim().replace(/\s+/g, " ") : "";
+  if (text.indexOf("<command-name>") >= 0){
+    var m = text.match(/<command-name>([^<]+)<\/command-name>/);
+    if (m) text = m[1].trim();
+  } else if (text.indexOf("<") === 0){
+    text = text.replace(/<[^>]+>/g, " ").trim().replace(/\s+/g, " ");
+  }
+  if (text) return text.length > 72 ? text.slice(0,72)+"…" : text;
+  var proj = (s.cwd && s.cwd !== "unknown") ? s.cwd.split("/").filter(Boolean).pop() : null;
+  if (proj) return proj + (s.entrypoint ? " · " + s.entrypoint : "");
+  return "Session " + s.id.slice(0,8);
+}
+
+function buildSessionLookup(view){
+  var byId = {};
+  view.sessions.forEach(function(s){ byId[s.id] = s; });
+  var firstPromptBySession = {};
+  view.prompts.forEach(function(p){
+    var cur = firstPromptBySession[p.sessionId];
+    if (!cur || p.ts < cur.ts) firstPromptBySession[p.sessionId] = p;
+  });
+  return { byId: byId, firstPromptBySession: firstPromptBySession };
+}
+
+function sessionCell(s, firstPrompt){
+  var sessTd = el("td", {class:"sess-cell"});
+  var proj = (s.cwd && s.cwd !== "unknown") ? s.cwd.split("/").filter(Boolean).pop() : null;
+  var titleEl = el("div", {class:"sess-title", text: sessionTitle(s, firstPrompt)});
+  titleEl.title = titleEl.textContent;
+  var metaBits = [s.id.slice(0,8)];
+  if (proj) metaBits.push(proj);
+  var metaEl = el("div", {class:"sess-meta", text: metaBits.join(" · ")});
+  sessTd.appendChild(titleEl); sessTd.appendChild(metaEl);
+  return sessTd;
 }
 
 function renderSessionTable(view){
@@ -1728,6 +1792,7 @@ function renderSessionTable(view){
   tbody.innerHTML = "";
   var promptCounts = {};
   view.prompts.forEach(function(p){ promptCounts[p.sessionId] = (promptCounts[p.sessionId]||0)+1; });
+  var lookup = buildSessionLookup(view);
   var rows = view.sessions.slice().sort(function(a,b){ return b.start-a.start; }).slice(0,40);
   if (!rows.length){
     var tr0 = el("tr"); var td0 = el("td", {text:"No sessions in range"}); td0.colSpan = 7; td0.style.color="var(--text-muted)"; tr0.appendChild(td0); tbody.appendChild(tr0);
@@ -1735,7 +1800,7 @@ function renderSessionTable(view){
   }
   rows.forEach(function(s){
     var tr = el("tr");
-    tr.appendChild(el("td", {class:"mono", text: s.id.length > 12 ? s.id.slice(0,8)+"…" : s.id}));
+    tr.appendChild(sessionCell(s, lookup.firstPromptBySession[s.id]));
     tr.appendChild(el("td", {class:"mono", text: fmtDateTime(s.start)}));
     tr.appendChild(el("td", {class:"num", text: fmtDuration(Math.max(0,s.end-s.start))}));
     var modelTd = el("td");
