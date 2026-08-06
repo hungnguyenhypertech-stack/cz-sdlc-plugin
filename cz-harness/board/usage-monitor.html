@@ -215,8 +215,12 @@
     background: var(--surface-2); border: 1px solid var(--border);
     color: var(--text-primary); border-radius: var(--radius-s);
     padding: 6px 8px; font-size: 12.5px; font-family: var(--font-mono);
+    min-width: 0; box-sizing: border-box;
   }
   select:hover, input:hover{ border-color: var(--border-strong); }
+  input[type="number"]{ -moz-appearance: textfield; appearance: textfield; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
 
   .file-input{ display: none; }
 
