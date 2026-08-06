@@ -296,7 +296,9 @@
   td.mono{ font-family: var(--font-mono); font-size: 11.5px; color: var(--text-primary); }
   .table-scroll{ overflow-x: auto; }
   td.sess-cell{ white-space: normal; max-width: 320px; }
-  .sess-title{ color: var(--text-primary); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+  .sess-title{ color: var(--text-primary); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; cursor: pointer; border-bottom: 1px dotted var(--text-muted); width: fit-content; }
+  .sess-title:hover{ color: var(--accent, #3987e5); }
+  .sess-title.expanded{ -webkit-line-clamp: unset; overflow: visible; white-space: normal; border-bottom: none; }
   .sess-meta{ color: var(--text-muted); font-size: 10.5px; font-family: var(--font-mono); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   tbody tr:hover td{ background: var(--surface-2); }
 
@@ -1758,7 +1760,7 @@ function sessionTitle(s, firstPrompt){
   } else if (text.indexOf("<") === 0){
     text = text.replace(/<[^>]+>/g, " ").trim().replace(/\s+/g, " ");
   }
-  if (text) return text.length > 72 ? text.slice(0,72)+"…" : text;
+  if (text) return text;
   var proj = (s.cwd && s.cwd !== "unknown") ? s.cwd.split("/").filter(Boolean).pop() : null;
   if (proj) return proj + (s.entrypoint ? " · " + s.entrypoint : "");
   return "Session " + s.id.slice(0,8);
@@ -1780,6 +1782,17 @@ function sessionCell(s, firstPrompt){
   var proj = (s.cwd && s.cwd !== "unknown") ? s.cwd.split("/").filter(Boolean).pop() : null;
   var titleEl = el("div", {class:"sess-title", text: sessionTitle(s, firstPrompt)});
   titleEl.title = titleEl.textContent;
+  titleEl.tabIndex = 0;
+  titleEl.setAttribute("role", "button");
+  titleEl.setAttribute("aria-expanded", "false");
+  var toggleTitle = function(){
+    var expanded = titleEl.classList.toggle("expanded");
+    titleEl.setAttribute("aria-expanded", expanded ? "true" : "false");
+  };
+  titleEl.addEventListener("click", toggleTitle);
+  titleEl.addEventListener("keydown", function(e){
+    if (e.key === "Enter" || e.key === " "){ e.preventDefault(); toggleTitle(); }
+  });
   var metaBits = [s.id.slice(0,8)];
   if (proj) metaBits.push(proj);
   var metaEl = el("div", {class:"sess-meta", text: metaBits.join(" · ")});
