@@ -300,6 +300,8 @@
   .sess-title:hover{ color: var(--accent, #3987e5); }
   .sess-title.expanded{ -webkit-line-clamp: unset; overflow: visible; white-space: normal; border-bottom: none; }
   .sess-meta{ color: var(--text-muted); font-size: 10.5px; font-family: var(--font-mono); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cache-val{ color: var(--text-primary); }
+  .cache-rate{ color: var(--text-muted); font-size: 10.5px; margin-top: 1px; }
   tbody tr:hover td{ background: var(--surface-2); }
 
   .pill{
@@ -660,7 +662,7 @@
             <thead>
               <tr>
                 <th>Session</th><th>Started</th><th class="num">Duration</th>
-                <th>Model(s)</th><th class="num">Prompts</th><th class="num">Tokens</th><th class="num">Est. cost</th><th class="num">Peak context</th>
+                <th>Model(s)</th><th class="num">Prompts</th><th class="num">Tokens</th><th class="num">Cache read</th><th class="num">Est. cost</th><th class="num">Peak context</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -1816,6 +1818,20 @@ function sessionCell(s, firstPrompt){
   return sessTd;
 }
 
+function cacheReadCell(s){
+  var td = el("td", {class:"num"});
+  var cacheRead = s.cacheRead || 0;
+  var fresh = s.tokensIn || 0; // includes cache-creation tokens, i.e. everything NOT served from cache
+  var total = cacheRead + fresh;
+  if (!total){ td.appendChild(document.createTextNode("—")); return td; }
+  var rate = total > 0 ? cacheRead/total : 0;
+  var valEl = el("div", {class:"cache-val", text: fmtCompact(cacheRead)});
+  var rateEl = el("div", {class:"cache-rate", text: fmtPct(rate) + " hit"});
+  td.appendChild(valEl); td.appendChild(rateEl);
+  td.title = fmtCompact(cacheRead) + " cached of " + fmtCompact(total) + " total input tokens (" + fmtPct(rate) + " cache hit rate)";
+  return td;
+}
+
 function contextRiskInfo(pct){
   if (pct >= CONTEXT_RISK_HIGH) return { cls: "fail", label: "High" };
   if (pct >= CONTEXT_RISK_WARN) return { cls: "running", label: "Elevated" };
@@ -1844,7 +1860,7 @@ function renderSessionTable(view){
   var lookup = buildSessionLookup(view);
   var rows = view.sessions.slice().sort(function(a,b){ return b.start-a.start; }).slice(0,40);
   if (!rows.length){
-    var tr0 = el("tr"); var td0 = el("td", {text:"No sessions in range"}); td0.colSpan = 8; td0.style.color="var(--text-muted)"; tr0.appendChild(td0); tbody.appendChild(tr0);
+    var tr0 = el("tr"); var td0 = el("td", {text:"No sessions in range"}); td0.colSpan = 9; td0.style.color="var(--text-muted)"; tr0.appendChild(td0); tbody.appendChild(tr0);
     return;
   }
   rows.forEach(function(s){
@@ -1863,6 +1879,7 @@ function renderSessionTable(view){
     tr.appendChild(el("td", {class:"num", text: fmtInt(promptCounts[s.id]||0)}));
     var tokTotal = (s.tokensIn||0) + (s.tokensOut||0);
     tr.appendChild(el("td", {class:"num", text: fmtCompact(tokTotal)}));
+    tr.appendChild(cacheReadCell(s));
     var cost = 0;
     (s.models.length?s.models:["Other"]).forEach(function(m){
       var rate = state.rates[m]||DEFAULT_RATES.Other;
