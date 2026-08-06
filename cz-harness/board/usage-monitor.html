@@ -660,7 +660,7 @@
             <thead>
               <tr>
                 <th>Session</th><th>Started</th><th class="num">Duration</th>
-                <th>Model(s)</th><th class="num">Prompts</th><th class="num">Tokens</th><th class="num">Est. cost</th>
+                <th>Model(s)</th><th class="num">Prompts</th><th class="num">Tokens</th><th class="num">Est. cost</th><th class="num">Peak context</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -692,6 +692,8 @@ var CATEGORY_COLOR = { Coding: PALETTE.s1, Analysis: PALETTE.s2, Writing: PALETT
 var HEAT_STEPS = ["#17171a","#173254","#1b4c82","#2168b3","#2a78d6","#4a9bef"];
 var DAY_MS = 86400000;
 var IDLE_GAP_MS = 180000; // gaps between turns under this are "agent run time"; overage is "idle"
+var CONTEXT_WINDOW_TOKENS = 200000; // standard Claude context window; used only to gauge context-rot risk, not billing
+var CONTEXT_RISK_WARN = 0.5, CONTEXT_RISK_HIGH = 0.8; // peak-context/window thresholds for the risk pill
 
 var PLAN_BUDGETS = { pro: 6000000, max5: 30000000, max20: 90000000, team: 60000000, custom: 45000000 };
 
@@ -831,6 +833,8 @@ function generateMockDataset(){
       var cur = sessionStart;
       var totalIn=0, totalOut=0, totalCacheRead=0;
       var activeMs = 0, idleMs = 0;
+      var convTokens = 600 + rnd()*1200; // system prompt + first turn, grows as the conversation continues
+      var peakContext = 0;
       var models = {}; models[modelKey(primaryModel)] = true;
 
       for (var t = 0; t < turns; t++){
@@ -841,11 +845,15 @@ function generateMockDataset(){
         var thisModel = primaryModel;
         if (rnd() < 0.06){ thisModel = "claude-haiku-4-5"; models.Haiku = true; }
         var mk = modelKey(thisModel);
-        var baseIn = 800 + rnd()*6000;
+        var baseIn = 400 + rnd()*2200; // fresh tokens this turn (new prompt/tool output)
         var baseOut = 150 + rnd()*900;
-        var cacheRead = rnd() < 0.6 ? baseIn * (2 + rnd()*8) : 0;
+        var cacheRead = convTokens; // prior conversation, replayed from cache each turn
+        var cacheCreate = t === 0 ? baseIn*0.5 : 0;
         totalIn += baseIn; totalOut += baseOut; totalCacheRead += cacheRead;
-        events.push({ ts: cur, sessionId: sid, model: mk, tokensIn: baseIn, tokensOut: baseOut, cacheRead: cacheRead, cacheCreate: rnd()<0.3 ? baseIn*0.4 : 0 });
+        events.push({ ts: cur, sessionId: sid, model: mk, tokensIn: baseIn, tokensOut: baseOut, cacheRead: cacheRead, cacheCreate: cacheCreate });
+        var turnContext = baseIn + cacheRead + cacheCreate;
+        if (turnContext > peakContext) peakContext = turnContext;
+        convTokens += baseIn + baseOut;
 
         if (rnd() < 0.7){
           var tn = TOOL_NAMES[Math.floor(rnd()*TOOL_NAMES.length)];
@@ -879,7 +887,7 @@ function generateMockDataset(){
         entrypoint: rnd() < 0.5 ? "cli" : (rnd() < 0.8 ? "claude-desktop" : "vscode"),
         models: Object.keys(models),
         tokensIn: totalIn, tokensOut: totalOut, cacheRead: totalCacheRead,
-        activeMs: activeMs, idleMs: idleMs
+        activeMs: activeMs, idleMs: idleMs, peakContextTokens: peakContext
       });
     }
   }
@@ -963,7 +971,7 @@ function parseLogText(text, dataset, fileLabel){
 function finalizeSessions(dataset){
   var bySession = {};
   function touch(sid, ts){
-    if (!bySession[sid]) bySession[sid] = { id: sid, start: ts, end: ts, tokensIn:0, tokensOut:0, cacheRead:0, models: {}, allTs: [] };
+    if (!bySession[sid]) bySession[sid] = { id: sid, start: ts, end: ts, tokensIn:0, tokensOut:0, cacheRead:0, models: {}, allTs: [], peakContextTokens: 0 };
     if (ts < bySession[sid].start) bySession[sid].start = ts;
     if (ts > bySession[sid].end) bySession[sid].end = ts;
     bySession[sid].allTs.push(ts);
@@ -974,6 +982,8 @@ function finalizeSessions(dataset){
     bySession[e.sessionId].tokensOut += e.tokensOut;
     bySession[e.sessionId].cacheRead += e.cacheRead||0;
     bySession[e.sessionId].models[e.model] = true;
+    var turnContext = (e.tokensIn||0) + (e.cacheRead||0) + (e.cacheCreate||0);
+    if (turnContext > bySession[e.sessionId].peakContextTokens) bySession[e.sessionId].peakContextTokens = turnContext;
   });
   dataset.prompts.forEach(function(p){ touch(p.sessionId, p.ts); });
   dataset.toolCalls.forEach(function(t){ touch(t.sessionId, t.ts); });
@@ -994,7 +1004,7 @@ function finalizeSessions(dataset){
       entrypoint: meta.entrypoint || "cli",
       models: Object.keys(s.models),
       tokensIn: s.tokensIn, tokensOut: s.tokensOut, cacheRead: s.cacheRead,
-      activeMs: activeMs, idleMs: idleMs
+      activeMs: activeMs, idleMs: idleMs, peakContextTokens: s.peakContextTokens
     };
   });
 }
@@ -1749,6 +1759,12 @@ function renderSessionsSection(view){
   grid.appendChild(statTile("Idle time", fmtDuration(totalIdle), null, null, "sum of turn gaps > " + fmtDuration(IDLE_GAP_MS)));
   grid.appendChild(statTile("Idle rate", fmtPct(idleRate), null, null, "idle ÷ (idle + agent run)"));
 
+  var peakPcts = sessions.map(function(s){ return (s.peakContextTokens||0) / CONTEXT_WINDOW_TOKENS; });
+  var atRisk = peakPcts.filter(function(p){ return p >= CONTEXT_RISK_WARN; }).length;
+  var maxPeakPct = peakPcts.length ? Math.max.apply(null, peakPcts) : 0;
+  grid.appendChild(statTile("Sessions at context risk", fmtInt(atRisk), null, null, "peak turn ≥ " + fmtPct(CONTEXT_RISK_WARN) + " of a " + fmtCompact(CONTEXT_WINDOW_TOKENS) + "-token window"));
+  grid.appendChild(statTile("Highest peak context", fmtPct(maxPeakPct), null, null, "single riskiest turn, any session in range"));
+
   renderSessionTable(view);
 }
 
@@ -1800,6 +1816,26 @@ function sessionCell(s, firstPrompt){
   return sessTd;
 }
 
+function contextRiskInfo(pct){
+  if (pct >= CONTEXT_RISK_HIGH) return { cls: "fail", label: "High" };
+  if (pct >= CONTEXT_RISK_WARN) return { cls: "running", label: "Elevated" };
+  return { cls: "success", label: "Low" };
+}
+
+function contextPillCell(s){
+  var td = el("td", {class:"num"});
+  var peak = s.peakContextTokens || 0;
+  if (!peak){ td.appendChild(document.createTextNode("—")); return td; }
+  var pct = clamp(peak / CONTEXT_WINDOW_TOKENS, 0, 1);
+  var risk = contextRiskInfo(pct);
+  var pill = el("span", { class: "pill " + risk.cls, style: "justify-content:flex-end;" });
+  pill.appendChild(el("span", {class:"dot"}));
+  pill.appendChild(document.createTextNode(fmtPct(pct)));
+  pill.title = fmtCompact(peak) + " tokens of " + fmtCompact(CONTEXT_WINDOW_TOKENS) + " window (peak single turn) — " + risk.label + " context-rot risk";
+  td.appendChild(pill);
+  return td;
+}
+
 function renderSessionTable(view){
   var tbody = $("#sessionTable tbody");
   tbody.innerHTML = "";
@@ -1808,7 +1844,7 @@ function renderSessionTable(view){
   var lookup = buildSessionLookup(view);
   var rows = view.sessions.slice().sort(function(a,b){ return b.start-a.start; }).slice(0,40);
   if (!rows.length){
-    var tr0 = el("tr"); var td0 = el("td", {text:"No sessions in range"}); td0.colSpan = 7; td0.style.color="var(--text-muted)"; tr0.appendChild(td0); tbody.appendChild(tr0);
+    var tr0 = el("tr"); var td0 = el("td", {text:"No sessions in range"}); td0.colSpan = 8; td0.style.color="var(--text-muted)"; tr0.appendChild(td0); tbody.appendChild(tr0);
     return;
   }
   rows.forEach(function(s){
@@ -1833,6 +1869,7 @@ function renderSessionTable(view){
       cost += ((s.tokensIn||0)/s.models.length/1e6)*rate.input + ((s.tokensOut||0)/s.models.length/1e6)*rate.output;
     });
     tr.appendChild(el("td", {class:"num", text: fmtUsd(cost)}));
+    tr.appendChild(contextPillCell(s));
     tbody.appendChild(tr);
   });
 }
