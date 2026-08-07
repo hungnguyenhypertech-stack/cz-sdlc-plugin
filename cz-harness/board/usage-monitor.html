@@ -495,6 +495,7 @@
     <a class="nav-link" data-target="sec-models"><span class="dot"></span>Models &amp; agents</a>
     <a class="nav-link" data-target="sec-prompts"><span class="dot"></span>Prompt analytics</a>
     <a class="nav-link" data-target="sec-sessions"><span class="dot"></span>Sessions</a>
+    <a class="nav-link" data-target="sec-security"><span class="dot"></span>Security</a>
   </nav>
 
   <div class="sidebar-foot">
@@ -731,6 +732,45 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="view-section" id="sec-security">
+      <div class="section-head">
+        <h2>Security signals</h2>
+        <span class="section-note">Heuristics over this device's own Claude Code session logs &mdash; not a substitute for EDR/MDM/DLP/CASB feeds</span>
+      </div>
+
+      <div class="stat-grid" id="securityGroupStats"></div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Findings</div>
+            <div class="card-sub">Pattern matches against tool calls, commands and message text in the loaded session log(s)</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+          <select id="securityGroupFilter" style="min-width:160px;">
+            <option value="all">All groups</option>
+          </select>
+          <input id="securityQueryFilter" type="text" placeholder="Filter by signal, evidence or session…" style="flex:1; min-width:220px;">
+        </div>
+        <div class="table-scroll">
+          <table id="securityTable">
+            <thead>
+              <tr>
+                <th>Group</th><th>Signal</th><th>Evidence</th><th>Session</th><th>When</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:10px; font-size:12.5px; color:var(--text-muted);">
+          <span id="securityPageInfo"></span>
+          <button class="btn ghost" id="securityPrevPage" type="button">Prev</button>
+          <button class="btn ghost" id="securityNextPage" type="button">Next</button>
         </div>
       </div>
     </section>
@@ -984,7 +1024,7 @@ function generateMockDataset(){
       });
     }
   }
-  return { source: "mock", events: events, toolCalls: toolCalls, runs: runs, prompts: prompts, assistantMessages: assistantMessages, sessions: sessionMeta };
+  return { source: "mock", events: events, toolCalls: toolCalls, runs: runs, prompts: prompts, assistantMessages: assistantMessages, sessions: sessionMeta, toolUseRaw: [] };
 }
 
 /* ============================== LOG PARSER ============================== */
@@ -1026,6 +1066,11 @@ function parseLogText(text, dataset, fileLabel){
             if (kind === "skill" && block.input && block.input.skill) name = block.input.skill;
             if (kind === "agent" && block.input && block.input.subagent_type) name = block.input.subagent_type;
             dataset.toolCalls.push({ ts: ts, sessionId: sessionId, name: name, kind: kind });
+            if (!isNaN(ts)){
+              var inputStr = "";
+              try { inputStr = JSON.stringify(block.input || {}); } catch(e2){ inputStr = String(block.input || ""); }
+              dataset.toolUseRaw.push({ ts: ts, sessionId: sessionId, name: block.name, input: inputStr, cwd: d.cwd || "" });
+            }
             if (kind !== "tool"){
               pendingRuns[block.id] = { ts: ts, sessionId: sessionId, name: name, type: kind, status: "running", durationMs: 0, result: "In progress", _resolved: false, toolUseId: block.id };
               dataset.runs.push(pendingRuns[block.id]);
@@ -1106,7 +1151,7 @@ function finalizeSessions(dataset){
 }
 
 function parseFiles(fileList, cb){
-  var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], assistantMessages: [], sessions: [] };
+  var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], assistantMessages: [], sessions: [], toolUseRaw: [] };
   var files = Array.prototype.slice.call(fileList);
   var remaining = files.length;
   if (!remaining){ cb(null); return; }
@@ -1140,7 +1185,8 @@ var state = {
   planLimit: PLAN_BUDGETS.max20,
   rates: JSON.parse(JSON.stringify(DEFAULT_RATES)),
   gran: "day",
-  subagentsBySession: {} // sessionId -> [{agentId, toolUseId, agentType, description, spawnDepth, steps}]; auto-load only
+  subagentsBySession: {}, // sessionId -> [{agentId, toolUseId, agentType, description, spawnDepth, steps}]; auto-load only
+  securityGroupFilter: "all", securityQuery: "", securityPage: 0
 };
 
 function currentRange(){
@@ -2137,12 +2183,239 @@ function populateModelFilter(){
   sel.value = MODEL_ORDER.indexOf(current) >= 0 || current === "all" ? current : "all";
 }
 
+/* ============================== RENDER: SECURITY ============================== */
+
+var SECURITY_GROUP_LABELS = {
+  g1: "1 · Unsafe AI tools", g2: "2 · AI over-trust", g3: "3 · Credential leak",
+  g4: "4 · TOS violation", g5: "5 · Budget runaway", g6: "6 · Data privacy"
+};
+var SECURITY_GROUPS = ["g1","g2","g3","g4","g5","g6"];
+
+var UNSAFE_TOOL_PATTERNS = [
+  { re:/\b9router\b/i, label:"9router reference" },
+  { re:/\bomniroute\b/i, label:"OmniRoute reference" },
+  { re:/\bopenclaw\b/i, label:"OpenClaw reference" },
+  { re:/\bcliproxyapi\b/i, label:"CLIProxyAPI reference" },
+  { re:/localhost:20128|127\.0\.0\.1:20128/i, label:"OmniRoute default port (20128)" }
+];
+var MCP_CONFIG_PATTERN = /\.mcp\.json|claude_desktop_config\.json|cline_mcp_settings\.json/i;
+var OVER_TRUST_PATTERNS = [
+  { re:/--dangerously-skip-permissions/i, label:"--dangerously-skip-permissions flag" },
+  { re:/bypassPermissions/i, label:"bypassPermissions mode" },
+  { re:/\byolo[\s-]?mode\b/i, label:"“YOLO mode” reference" },
+  { re:/auto[-_ ]?approve/i, label:"auto-approve toggle" }
+];
+var SECRET_PATTERNS = [
+  { re:/AKIA[0-9A-Z]{16}/, label:"AWS access key ID" },
+  { re:/sk-[A-Za-z0-9]{20,}/, label:"OpenAI/Anthropic-style secret key" },
+  { re:/ghp_[A-Za-z0-9]{36}/, label:"GitHub personal access token" },
+  { re:/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, label:"JWT-shaped token" },
+  { re:/-----BEGIN( RSA| OPENSSH| EC)? PRIVATE KEY-----/, label:"private key block" }
+];
+var TUNNEL_PATTERNS = [
+  { re:/\bngrok\b/i, label:"ngrok tunnel" },
+  { re:/\bfrpc?\b/i, label:"frp tunnel client" },
+  { re:/\bchisel\b/i, label:"chisel tunnel" },
+  { re:/ssh\s+-[A-Za-z]*[LRD]\b/, label:"SSH port-forward (-L/-R/-D)" }
+];
+var DATA_EXFIL_PATTERNS = [
+  { re:/scribd\.com/i, label:"Scribd reference" },
+  { re:/dropbox\.com/i, label:"personal Dropbox reference" },
+  { re:/drive\.google\.com/i, label:"Google Drive reference — verify against approved allow-list" },
+  { re:/wetransfer\.com/i, label:"WeTransfer reference" }
+];
+var SECURITY_GROUP_CAPTIONS = {
+  g1: "Commands/cwd matched against 9router, OmniRoute, OpenClaw, CLIProxyAPI, port 20128, plus any .mcp.json / claude_desktop_config.json / cline_mcp_settings.json edit",
+  g2: "Commands matched against --dangerously-skip-permissions, bypassPermissions, “YOLO mode”, auto-approve",
+  g3: "Commands + message text matched against AWS/OpenAI/GitHub key shapes, JWTs, private-key blocks",
+  g4: "Commands matched against ngrok, frp, chisel, ssh -L/-R/-D",
+  g5: "Days where spend > 2.5x its trailing 7-day average, tool calls repeated 5x identically in a row, or Opus averaging < 150 output tokens/turn",
+  g6: "Commands + message text matched against Scribd, Dropbox, Google Drive, WeTransfer references"
+};
+
+function scanRecords(records, patterns, groupId, getText){
+  var out = [];
+  records.forEach(function(r){
+    var text = getText(r);
+    if (!text) return;
+    patterns.forEach(function(p){
+      if (p.re.test(text)){
+        out.push({ group: groupId, signal: p.label, evidence: text.length > 160 ? text.slice(0,160) + "…" : text, sessionId: r.sessionId, ts: r.ts });
+      }
+    });
+  });
+  return out;
+}
+
+function dailyCost(events){
+  var byDay = {};
+  events.forEach(function(e){
+    var day = dayKey(new Date(e.ts));
+    var rate = state.rates[e.model] || state.rates.Other;
+    var cost = (e.tokensIn/1e6)*rate.input + (e.tokensOut/1e6)*rate.output + ((e.cacheRead||0)/1e6)*(rate.input*0.1);
+    byDay[day] = (byDay[day]||0) + cost;
+  });
+  return byDay;
+}
+
+function findBudgetSpikes(){
+  var byDay = dailyCost(state.dataset.events);
+  var days = Object.keys(byDay).map(Number).sort(function(a,b){ return a-b; });
+  var out = [];
+  for (var i = 0; i < days.length; i++){
+    var win = days.slice(Math.max(0, i-7), i);
+    if (win.length < 4) continue;
+    var avg = win.reduce(function(s,d){ return s + byDay[d]; }, 0) / win.length;
+    var today = byDay[days[i]];
+    if (avg > 0 && today > 1 && today > avg * 2.5){
+      out.push({
+        group:"g5",
+        signal:"Daily spend " + fmtUsd(today) + " is " + (today/avg).toFixed(1) + "x the trailing 7-day average (" + fmtUsd(avg) + ")",
+        evidence: fmtDate(days[i]), sessionId:"—", ts: days[i]
+      });
+    }
+  }
+  return out;
+}
+
+function findLoopRunaway(toolUse){
+  var bySession = {};
+  toolUse.forEach(function(r){ (bySession[r.sessionId] = bySession[r.sessionId] || []).push(r); });
+  var out = [];
+  Object.keys(bySession).forEach(function(sid){
+    var seq = bySession[sid].slice().sort(function(a,b){ return a.ts - b.ts; });
+    var runLen = 1;
+    for (var i = 1; i < seq.length; i++){
+      var same = seq[i].name === seq[i-1].name && seq[i].input === seq[i-1].input;
+      runLen = same ? runLen + 1 : 1;
+      if (runLen === 5){
+        out.push({
+          group:"g5", signal:"Repeated identical tool call (" + seq[i].name + ") 5x in a row — possible loop runaway",
+          evidence: (seq[i].input || "").slice(0,140), sessionId: sid, ts: seq[i].ts
+        });
+      }
+    }
+  });
+  return out;
+}
+
+function findModelWaste(view){
+  var out = [];
+  view.sessions.forEach(function(s){
+    if (s.models.indexOf("Opus") === -1) return;
+    var evs = state.dataset.events.filter(function(e){ return e.sessionId === s.id && e.model === "Opus"; });
+    if (evs.length < 3) return;
+    var avgOut = evs.reduce(function(sum,e){ return sum + e.tokensOut; }, 0) / evs.length;
+    if (avgOut < 150){
+      out.push({
+        group:"g5", signal:"Opus used for " + evs.length + " turns averaging only " + Math.round(avgOut) + " output tokens — a lighter model tier may be cheaper for this workload",
+        evidence: s.id, sessionId: s.id, ts: s.end
+      });
+    }
+  });
+  return out;
+}
+
+function computeSecurityFindings(view){
+  var ds = state.dataset;
+  var range = view.range;
+  var toolUse = (ds.toolUseRaw || []).filter(function(r){ return r.ts >= range.start && r.ts <= range.end; });
+  var texts = (ds.prompts || []).filter(function(p){ return p.ts >= range.start && p.ts <= range.end; })
+    .map(function(p){ return { ts:p.ts, sessionId:p.sessionId, text:p.text }; })
+    .concat((ds.assistantMessages || []).filter(function(m){ return m.ts >= range.start && m.ts <= range.end; })
+      .map(function(m){ return { ts:m.ts, sessionId:m.sessionId, text:m.text }; }));
+
+  var findings = [];
+  findings = findings.concat(scanRecords(toolUse, UNSAFE_TOOL_PATTERNS, "g1", function(r){ return r.input + " " + r.cwd; }));
+  toolUse.forEach(function(r){
+    if (MCP_CONFIG_PATTERN.test(r.input)){
+      findings.push({ group:"g1", signal:"MCP config file touched — diff its server list against the approved registry", evidence: r.input.slice(0,160), sessionId:r.sessionId, ts:r.ts });
+    }
+  });
+  findings = findings.concat(scanRecords(toolUse, OVER_TRUST_PATTERNS, "g2", function(r){ return r.input; }));
+  findings = findings.concat(scanRecords(toolUse, SECRET_PATTERNS, "g3", function(r){ return r.input; }));
+  findings = findings.concat(scanRecords(texts, SECRET_PATTERNS, "g3", function(r){ return r.text; }));
+  findings = findings.concat(scanRecords(toolUse, TUNNEL_PATTERNS, "g4", function(r){ return r.input; }));
+  findings = findings.concat(findBudgetSpikes());
+  findings = findings.concat(findLoopRunaway(toolUse));
+  findings = findings.concat(findModelWaste(view));
+  findings = findings.concat(scanRecords(toolUse, DATA_EXFIL_PATTERNS, "g6", function(r){ return r.input; }));
+  findings = findings.concat(scanRecords(texts, DATA_EXFIL_PATTERNS, "g6", function(r){ return r.text; }));
+
+  findings.sort(function(a,b){ return b.ts - a.ts; });
+  return findings;
+}
+
+var SECURITY_PAGE_SIZE = 25;
+
+function populateSecurityGroupFilter(){
+  var sel = $("#securityGroupFilter");
+  if (sel.dataset.populated) return;
+  sel.dataset.populated = "1";
+  SECURITY_GROUPS.forEach(function(g){
+    sel.appendChild(el("option", { value:g, text: SECURITY_GROUP_LABELS[g] }));
+  });
+}
+
+function renderSecuritySection(view){
+  populateSecurityGroupFilter();
+  var findings = computeSecurityFindings(view);
+  var counts = {};
+  SECURITY_GROUPS.forEach(function(g){ counts[g] = 0; });
+  findings.forEach(function(f){ counts[f.group] = (counts[f.group]||0) + 1; });
+
+  var grid = $("#securityGroupStats");
+  grid.innerHTML = "";
+  SECURITY_GROUPS.forEach(function(g){
+    grid.appendChild(statTile(SECURITY_GROUP_LABELS[g], fmtInt(counts[g]), null, null, SECURITY_GROUP_CAPTIONS[g]));
+  });
+
+  var groupFilter = state.securityGroupFilter || "all";
+  var query = (state.securityQuery || "").trim().toLowerCase();
+  var filtered = findings.filter(function(f){
+    if (groupFilter !== "all" && f.group !== groupFilter) return false;
+    if (!query) return true;
+    var hay = ((f.signal||"") + " " + (f.evidence||"") + " " + (f.sessionId||"")).toLowerCase();
+    return hay.indexOf(query) !== -1;
+  });
+
+  var totalPages = Math.max(1, Math.ceil(filtered.length / SECURITY_PAGE_SIZE));
+  state.securityPage = clamp(state.securityPage || 0, 0, totalPages - 1);
+  var start = state.securityPage * SECURITY_PAGE_SIZE;
+  var pageRows = filtered.slice(start, start + SECURITY_PAGE_SIZE);
+
+  var tbody = $("#securityTable tbody");
+  tbody.innerHTML = "";
+  if (!pageRows.length){
+    var tr0 = el("tr");
+    var td0 = el("td", { text: findings.length ? "No findings match this filter." : "No signals in the selected range." });
+    td0.colSpan = 5; td0.style.color = "var(--text-muted)";
+    tr0.appendChild(td0); tbody.appendChild(tr0);
+  }
+  pageRows.forEach(function(f){
+    var tr = el("tr");
+    tr.appendChild(el("td", { text: SECURITY_GROUP_LABELS[f.group] || f.group }));
+    tr.appendChild(el("td", { text: f.signal }));
+    tr.appendChild(el("td", { text: f.evidence || "" }));
+    tr.appendChild(el("td", { text: f.sessionId || "" }));
+    tr.appendChild(el("td", { text: isNaN(f.ts) ? "" : fmtDateTime(f.ts) }));
+    tbody.appendChild(tr);
+  });
+
+  $("#securityPageInfo").textContent = filtered.length
+    ? ("Showing " + (start+1) + "–" + Math.min(start+pageRows.length, filtered.length) + " of " + filtered.length)
+    : "0 of 0";
+  $("#securityPrevPage").disabled = state.securityPage <= 0;
+  $("#securityNextPage").disabled = state.securityPage >= totalPages - 1;
+}
+
 function renderAll(){
   var view = deriveView();
   renderTokenSection(view);
   renderModelsSection(view);
   renderPromptsSection(view);
   renderSessionsSection(view);
+  renderSecuritySection(view);
 }
 
 /* ============================== EVENTS ============================== */
@@ -2156,7 +2429,7 @@ $all(".nav-link").forEach(function(link){
   });
 });
 
-var sections = ["sec-tokens","sec-models","sec-prompts","sec-sessions"].map(function(id){ return document.getElementById(id); });
+var sections = ["sec-tokens","sec-models","sec-prompts","sec-sessions","sec-security"].map(function(id){ return document.getElementById(id); });
 window.addEventListener("scroll", function(){
   var pos = window.scrollY + 140;
   var activeId = sections[0].id;
@@ -2211,6 +2484,20 @@ $("#granSeg").addEventListener("click", function(e){
   state.gran = btn.dataset.gran;
   renderBreakdownChart(deriveView());
 });
+
+$("#securityGroupFilter").addEventListener("change", function(){
+  state.securityGroupFilter = this.value; state.securityPage = 0; renderSecuritySection(deriveView());
+});
+var securityQueryTimer;
+$("#securityQueryFilter").addEventListener("input", function(){
+  var val = this.value;
+  clearTimeout(securityQueryTimer);
+  securityQueryTimer = setTimeout(function(){
+    state.securityQuery = val; state.securityPage = 0; renderSecuritySection(deriveView());
+  }, 150);
+});
+$("#securityPrevPage").addEventListener("click", function(){ state.securityPage = Math.max(0, (state.securityPage||0) - 1); renderSecuritySection(deriveView()); });
+$("#securityNextPage").addEventListener("click", function(){ state.securityPage = (state.securityPage||0) + 1; renderSecuritySection(deriveView()); });
 
 $("#loadLogBtn").addEventListener("click", function(){ $("#fileInput").click(); });
 $("#fileInput").addEventListener("change", function(e){
@@ -2275,7 +2562,7 @@ renderAll();
   var order = [];   // project names in manifest order
 
   function buildDataset(names){
-    var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], assistantMessages: [], sessions: [] };
+    var dataset = { source: "log", events: [], toolCalls: [], runs: [], prompts: [], assistantMessages: [], sessions: [], toolUseRaw: [] };
     names.forEach(function(name){
       if (cache[name]) parseLogText(cache[name], dataset, name);
     });
