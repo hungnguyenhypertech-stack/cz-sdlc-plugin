@@ -413,6 +413,85 @@
   .dv-chip.dv-pass { border-color: var(--green); color: var(--green); }
   .dv-chip.dv-fail { border-color: var(--red); color: var(--red); }
   table.rd-table td.dv-none { color: var(--border); font-style: italic; }
+
+  /* ---------- health check tab ---------- */
+  .hc-meta { color: var(--dim); margin-bottom: 12px; font-size: 12px; }
+  .hc-meta strong { color: var(--text); }
+  .hc-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .hc-strip .agent-card { min-width: 132px; }
+  .hc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .hc-card {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    padding: 10px 12px;
+  }
+  .hc-card.hc-clean { border-left-color: var(--green); }
+  .hc-card.hc-gap { border-left-color: var(--amber); }
+  .hc-card.hc-hot { border-left-color: var(--red); }
+  .hc-card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .hc-card-name { color: var(--text); font-weight: bold; font-size: 13px; }
+  .hc-badge { font-size: 10px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; text-transform: uppercase; letter-spacing: .03em; }
+  .hc-clean .hc-badge { border-color: var(--green); color: var(--green); }
+  .hc-gap .hc-badge { border-color: var(--amber); color: var(--amber); }
+  .hc-hot .hc-badge { border-color: var(--red); color: var(--red); }
+  .hc-card-metric { color: var(--blue); font-size: 20px; font-weight: bold; margin: 4px 0 6px; }
+  .hc-card-headline { color: var(--dim); font-size: 11px; margin-bottom: 8px; }
+  .hc-card details summary { cursor: pointer; color: var(--dim); font-size: 11px; outline: none; user-select: none; }
+  .hc-card details summary:hover { color: var(--text); }
+  .hc-card details[open] summary { color: var(--text); margin-bottom: 6px; }
+  .hc-card ul { margin: 4px 0 8px; padding-left: 18px; color: var(--text); font-size: 12px; line-height: 1.5; }
+  .hc-card ul li { margin-bottom: 3px; }
+  .hc-card .hc-next { border-top: 1px dashed var(--border); padding-top: 6px; margin-top: 4px; font-size: 11px; color: var(--dim); }
+  .hc-card .hc-next strong { color: var(--text); }
+  .hc-legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--dim); font-size: 11px; margin-bottom: 12px; }
+
+  /* -- overview: donut + meters, ahead of the per-dimension deep-dive -- */
+  .hc-overview {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .hc-donut-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .hc-donut-center-value { font-size: 22px; font-weight: bold; fill: var(--text); }
+  .hc-donut-center-sub { font-size: 8px; fill: var(--dim); text-transform: uppercase; letter-spacing: .03em; }
+  .hc-donut-legend { display: flex; flex-direction: column; gap: 7px; font-size: 12px; }
+  .hc-donut-legend .sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 7px; vertical-align: -1px; }
+  .hc-donut-legend .hc-dl-count { color: var(--text); font-weight: bold; }
+  .hc-donut-legend .hc-dl-label { color: var(--dim); }
+  .hc-meters-card {
+    flex: 1;
+    min-width: 320px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    padding: 14px 18px;
+  }
+  .hc-meters-title { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 10px; }
+  .hc-meter-row { display: grid; grid-template-columns: 118px 1fr 38px; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .hc-meter-row:last-child { margin-bottom: 0; }
+  .hc-meter-label { color: var(--text); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hc-meter-track { height: 10px; background: var(--panel2); border-radius: 0 4px 4px 0; overflow: hidden; }
+  .hc-meter-fill { height: 100%; border-radius: 0 4px 4px 0; }
+  .hc-meter-fill.hc-clean { background: var(--green); }
+  .hc-meter-fill.hc-gap { background: var(--amber); }
+  .hc-meter-fill.hc-hot { background: var(--red); }
+  .hc-meter-value { color: var(--dim); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -431,6 +510,7 @@
   <button class="tab-btn active" data-tab="workflow">Workflow</button>
   <button class="tab-btn" data-tab="live">Live board</button>
   <button class="tab-btn" data-tab="deliverables">Deliverables</button>
+  <button class="tab-btn" data-tab="health">Health Check</button>
   <button class="tab-btn" data-tab="audit">Audit &amp; Outcomes</button>
 </div>
 
@@ -581,6 +661,47 @@
   </div>
 
   <div class="phase-note" id="dv-note"></div>
+</div>
+
+<!-- ================= HEALTH CHECK TAB ================= -->
+<div class="tab-panel" id="tab-health">
+
+  <div class="hc-meta" id="hc-meta"></div>
+
+  <div class="hc-strip" id="hc-strip"></div>
+
+  <div class="section-label">overview &middot; at a glance, before the per-dimension numbers below</div>
+  <div class="hc-overview">
+    <div class="hc-donut-card" id="hc-donut-card"></div>
+    <div class="hc-meters-card">
+      <div class="hc-meters-title">dimension health &middot; % of what each check measures that&rsquo;s in good shape</div>
+      <div id="hc-meters"></div>
+    </div>
+  </div>
+
+  <div class="hc-legend">
+    <span><span class="hc-badge" style="border-color:var(--green);color:var(--green);">clean</span> no action needed &mdash; consistent with config or nothing found</span>
+    <span><span class="hc-badge" style="border-color:var(--amber);color:var(--amber);">gap</span> real gap, has a concrete next action</span>
+    <span><span class="hc-badge" style="border-color:var(--red);color:var(--red);">critical</span> gap at or near 0% &mdash; the sharpest findings</span>
+  </div>
+
+  <div class="section-label">7 traceability dimensions &middot; click a card to expand findings</div>
+  <div class="hc-grid" id="hc-grid"></div>
+
+  <div class="wf-search">
+    <input id="hc-filter" type="text" placeholder="filter next actions by dimension or keyword&hellip;">
+  </div>
+  <div class="section-label">summary of next actions by owner</div>
+  <div class="rd-table-wrap">
+    <table class="rd-table">
+      <thead>
+        <tr><th>Gap</th><th>Dimension</th><th>Next action</th></tr>
+      </thead>
+      <tbody id="hc-actions-body"></tbody>
+    </table>
+  </div>
+
+  <div class="phase-note" id="hc-note"></div>
 </div>
 
 <!-- ================= AUDIT & OUTCOMES TAB ================= -->
@@ -741,6 +862,143 @@ PHASE_OVERVIEW.forEach(p => {
     `<td class="${p.runs === 'loop' ? 'runs-loop' : 'runs-once'}">${p.runs === 'loop' ? '&#8635; ' : '&#10003; '}${p.runsLabel}</td>`;
   tbody.appendChild(tr);
 });
+
+/* ---------------- health check tab (static per-project snapshot, not live board.json) ----------------
+   /cz:health-check has no JSON sidecar (unlike board.json / deliverables/index.json / gate-records/index.json)
+   — it writes a prose report to deliverables/HEALTH-CHECK-<project>.md. After running it for THIS project,
+   fill in HEALTH_CHECK below with that report's 7 dimensions (see the AIBOOTCAMP reference project for a
+   worked example) and re-run this block, or leave it empty to show the "not run yet" state. */
+const HEALTH_CHECK = {
+  checked_at: null,
+  project: { reqs: null, rds: null, modules: null },
+  dimensions: [],   // [{ key, name, status: "clean"|"gap", severity: "clean"|"gap"|"hot", ratio: 0-100,
+                     //   metric, headline, findings: [html, ...], next: html }, ...] — one per dimension
+  nextActions: []   // [{ gap, dim, action }, ...]
+};
+
+const HC_SEVERITY_COLOR = { clean: "var(--green)", gap: "var(--amber)", hot: "var(--red)" };
+const HC_SEVERITY_LABEL = { clean: "clean", gap: "gap", hot: "critical" };
+
+function renderHealthCheck() {
+  const hc = HEALTH_CHECK;
+  const hasData = hc.dimensions.length > 0;
+
+  document.getElementById("hc-meta").innerHTML = hasData
+    ? `Checked <strong>${hc.checked_at}</strong> via <code>/cz:health-check</code> &middot; ` +
+      `project shape: <strong>${hc.project.reqs}</strong> REQs &middot; <strong>${hc.project.rds}</strong> RD files &middot; <strong>${hc.project.modules}</strong> modules &middot; ` +
+      `scores traceability memory quality across 7 dimensions &mdash; read-only, issues no pass/fail verdict.`
+    : `Run <code>/cz:health-check &lt;project&gt;</code>, then populate the <code>HEALTH_CHECK</code> object near the top of this ` +
+      `tab's script with its 7 dimensions to light this tab up.`;
+
+  const strip = document.getElementById("hc-strip");
+  strip.innerHTML = "";
+  const grid = document.getElementById("hc-grid");
+  grid.innerHTML = "";
+
+  if (!hasData) {
+    document.getElementById("hc-donut-card").innerHTML = '<div class="empty">&mdash;</div>';
+    document.getElementById("hc-meters").innerHTML = '<div class="empty">no dimensions to chart yet</div>';
+    grid.innerHTML = '<div class="empty">no health-check data yet for this project</div>';
+    renderHealthActions("");
+    return;
+  }
+
+  const cleanCount = hc.dimensions.filter(d => d.status === "clean").length;
+  const gapCount = hc.dimensions.filter(d => d.status === "gap").length;
+  const avgRatio = Math.round(hc.dimensions.reduce((sum, d) => sum + d.ratio, 0) / hc.dimensions.length);
+  strip.appendChild(metricCard("Avg. dimension health", avgRatio + "%", "mean of all 7 ratios below"));
+  strip.appendChild(metricCard("Dimensions clean", cleanCount + "/" + hc.dimensions.length, "no action needed"));
+  strip.appendChild(metricCard("Dimensions with gaps", gapCount + "/" + hc.dimensions.length, "have a concrete next action"));
+  strip.appendChild(metricCard("Next actions", String(hc.nextActions.length), "tracked below by owner"));
+
+  renderHealthOverview(hc);
+
+  hc.dimensions.forEach(d => {
+    const card = document.createElement("div");
+    card.className = "hc-card hc-" + d.severity;
+    const findingsHtml = d.findings.map(f => `<li>${f}</li>`).join("");
+    card.innerHTML =
+      `<div class="hc-card-head"><span class="hc-card-name">${d.name}</span><span class="hc-badge">${HC_SEVERITY_LABEL[d.severity]}</span></div>` +
+      `<div class="hc-card-metric">${d.metric} <span style="font-size:12px;color:var(--dim);font-weight:normal;">&middot; ${d.ratio}%</span></div>` +
+      `<div class="hc-card-headline">${d.headline}</div>` +
+      `<details><summary>findings &amp; next action</summary>` +
+      `<ul>${findingsHtml}</ul>` +
+      `<div class="hc-next"><strong>Next:</strong> ${d.next}</div>` +
+      `</details>`;
+    grid.appendChild(card);
+  });
+
+  renderHealthActions("");
+  document.getElementById("hc-filter").addEventListener("input", (e) => {
+    renderHealthActions(e.target.value.trim().toLowerCase());
+  });
+}
+
+function renderHealthOverview(hc) {
+  // -- donut: how many of the 7 dimensions are clean / gap / critical --
+  const tiers = ["clean", "gap", "hot"];
+  const counts = { clean: 0, gap: 0, hot: 0 };
+  hc.dimensions.forEach(d => counts[d.severity]++);
+  const total = hc.dimensions.length;
+
+  const R = 46, CX = 54, CY = 54, STROKE = 16;
+  const GAP = 1.6; // units out of 100 (pathLength), reads as ~2px surface gap at this radius
+  let cursor = 0;
+  const arcs = tiers.filter(t => counts[t] > 0).map(t => {
+    const pct = (counts[t] / total) * 100;
+    const segLen = Math.max(pct - GAP, 0);
+    const circle = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${HC_SEVERITY_COLOR[t]}" ` +
+      `stroke-width="${STROKE}" pathLength="100" stroke-dasharray="${segLen} ${100 - segLen}" ` +
+      `stroke-dashoffset="${-cursor}" stroke-linecap="round" transform="rotate(-90 ${CX} ${CY})"></circle>`;
+    cursor += pct;
+    return circle;
+  }).join("");
+
+  const donutSvg =
+    `<svg width="108" height="108" viewBox="0 0 108 108" role="img" aria-label="dimension health split">` +
+    `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--panel2)" stroke-width="${STROKE}"></circle>` +
+    arcs +
+    `<text x="${CX}" y="${CY - 3}" text-anchor="middle" class="hc-donut-center-value">${counts.clean}/${total}</text>` +
+    `<text x="${CX}" y="${CY + 11}" text-anchor="middle" class="hc-donut-center-sub">clean</text>` +
+    `</svg>`;
+
+  const legendRows = tiers.filter(t => counts[t] > 0).map(t =>
+    `<div><span class="sw" style="background:${HC_SEVERITY_COLOR[t]};"></span>` +
+    `<span class="hc-dl-count">${counts[t]}</span> <span class="hc-dl-label">${HC_SEVERITY_LABEL[t]}</span></div>`
+  ).join("");
+
+  document.getElementById("hc-donut-card").innerHTML =
+    donutSvg + `<div class="hc-donut-legend">${legendRows}</div>`;
+
+  // -- meters: exact % per dimension, sorted worst-first so the sharpest gaps lead --
+  const sorted = [...hc.dimensions].sort((a, b) => a.ratio - b.ratio);
+  const metersHtml = sorted.map(d =>
+    `<div class="hc-meter-row">` +
+    `<span class="hc-meter-label" title="${d.name}">${d.name}</span>` +
+    `<div class="hc-meter-track"><div class="hc-meter-fill hc-${d.severity}" style="width:${d.ratio}%;"></div></div>` +
+    `<span class="hc-meter-value">${d.ratio}%</span>` +
+    `</div>`
+  ).join("");
+  document.getElementById("hc-meters").innerHTML = metersHtml;
+}
+
+function renderHealthActions(q) {
+  const tbody = document.getElementById("hc-actions-body");
+  tbody.innerHTML = "";
+  const filtered = HEALTH_CHECK.nextActions.filter(a =>
+    !q || (a.gap + " " + a.dim + " " + a.action).toLowerCase().includes(q)
+  );
+  filtered.forEach(a => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${escapeHtml(a.gap)}</td><td>${escapeHtml(a.dim)}</td><td>${escapeHtml(a.action)}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">no next actions match</td></tr>';
+  }
+}
+
+renderHealthCheck();
 
 /* highlight-by-agent */
 document.getElementById("wf-highlight").addEventListener("input", (e) => {
@@ -1180,6 +1438,12 @@ async function refresh() {
   if (!agents.length) agentsPanel.innerHTML = '<div class="empty">no active agents</div>';
 
   document.getElementById("hdr-project").textContent = data.project || "—";
+  const hcNote = document.getElementById("hc-note");
+  if (hcNote) {
+    const hcProject = data.project || "PROJECT";
+    hcNote.innerHTML = `Snapshot from <code>/cz:health-check</code> &middot; read-only, no gate profile, does not block any pipeline step &middot; ` +
+      `full narrative in <a href="../deliverables/HEALTH-CHECK-${escapeHtml(hcProject)}.html">deliverables/HEALTH-CHECK-${escapeHtml(hcProject)}.md</a>.`;
+  }
   document.getElementById("hdr-wave").textContent = data.wave != null ? "Wave " + data.wave : "";
   document.getElementById("hdr-profile").textContent = data.profile || "—";
   const maxInFlight = (data.concurrency && data.concurrency.max_in_flight) || "—";
