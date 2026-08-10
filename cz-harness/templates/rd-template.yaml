@@ -102,11 +102,27 @@ red_skipped: false             # PERMANENT once true. Only ever true under profi
 # --- Lifecycle (system-managed — do not hand-edit after draft) -------------------
 state: red                     # draft | blocked_dep | ready | claimed | red | green |
                               # ai_review | sec_review | human_review | accepted |
-                              # rejected | stale | blocked_hardstop | withdrawn.
+                              # rejected | stale | blocked_hardstop | withdrawn |
+                              # superseded (replaced by one or more successor RDs,
+                              # e.g. after a /cz:rd split — distinct from withdrawn,
+                              # which means dropped with no successor).
                               # Transitions enforced by hooks/guard-state-transition.sh
                               # per the table in docs/TRACEABILITY.md / plan §6.1.
 assigned_agent: dev            # system-managed — set when an agent claims this RD.
 claimed_at: "2026-07-27T09:41:12Z"   # system-managed — ISO8601 UTC.
+
+notes: "REPLACE_ME — why this version changed (AC edit, DoR-rule failure,
+  content_hash recompute rationale, or — for state: superseded — a pointer to
+  the successor RD(s))."
+                              # Optional on version 1; expected (not schema-required)
+                              # once version >= 2 — hooks/warn-rd-changelog.sh logs a
+                              # non-blocking advisory if it's missing at that point.
+                              # MUST be a single-line double-quoted string (like every
+                              # existing notes: field in this project) — cz_rd_field()
+                              # is a single-line scalar reader, not a YAML block-scalar
+                              # parser (hooks/lib/common.sh), so a `>` or `|` folded/
+                              # literal block here would read as empty everywhere,
+                              # including to warn-rd-changelog.sh's own check.
 
 # --- Tests & evidence ----------------------------------------------------------
 tests:                         # TC ids derived from this RD's AC (see tc-template.yaml).

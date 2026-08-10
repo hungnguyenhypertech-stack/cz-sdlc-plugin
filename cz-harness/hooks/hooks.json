@@ -23,9 +23,22 @@
         ]
       },
       {
-        "matcher": "Write",
+        "matcher": "Write|Edit",
         "hooks": [
           { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/render-deliverable.sh" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/warn-rd-changelog.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/warn-freshness.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/warn-decision-coverage.sh" }
         ]
       }
     ]
@@ -36,6 +49,7 @@
     "guard-claim-lock.sh is NOT wired here as a Write/Edit hook — it is invoked directly by /cz:rd and /cz:build at claim time, since a claim is a distinct action from a file write.",
     "release-lock.sh (like restamp-lock.sh) is likewise NOT wired here — /cz:gate invokes it directly at step 8 when an RD is accepted, so the lock release is durably recorded (rd_release) in telemetry before the lock file is removed, added 2026-07-29 per /cz:audit UL-002.",
     "Phase 3 risk (plan §13): if Claude Code hooks cannot intercept every write path, these guarantees become advisory. Fallback is /cz:audit retro-verification from git history + telemetry.",
-    "render-deliverable.sh is separate from the '*' PostToolUse block (and runs after it) because it only needs to fire on Write, and only for deliverables/**/*.md — it renders a sibling .html and rebuilds deliverables/index.html. It is purely cosmetic (human-readability) and must never deny a write; see docs/DELIVERABLES.md."
+    "render-deliverable.sh is separate from the '*' PostToolUse block (and runs after it) because it only needs to fire on deliverables/**/*.md — it renders a sibling .html and rebuilds deliverables/index.html. It is purely cosmetic (human-readability) and must never deny a write; see docs/DELIVERABLES.md. Matcher changed from 'Write' to 'Write|Edit' (per /cz:health-check's Change-coupling finding: 32/120 rendered deliverables were stale because every DEVBOOK/understanding-log file gets touched by Edit far more often than by a full Write, and Edit never fired this hook) — the render itself is idempotent (re-renders the current on-disk content regardless of which tool produced it), so widening the matcher changes nothing about what gets rendered, only how often it stays current.",
+    "warn-rd-changelog.sh, warn-freshness.sh, warn-decision-coverage.sh (added per /cz:health-check's 2026-08-10 AIBOOTCAMP run) are all non-blocking (log + telemetry only, mirroring detect-hazard.sh's pattern — never cz_deny) and each closes one dimension health-check could previously only find after the fact: warn-rd-changelog flags a version>=2 RD with no notes: change-log (Change coupling); warn-freshness flags a src/**/tests/** citation of a just-superseded/withdrawn RD id, and separately flags a parent_req whose entire RD lineage just went dead (Freshness, Coverage); warn-decision-coverage flags a RISK.md hazard:HIGH module with no matching ADR-NNN section anywhere (Decision coverage). All three fire PostToolUse (after the write already landed) since they need to read the resulting on-disk state, not the incoming diff — see each script's own header for why a PreToolUse hard-block was rejected for these specific checks. They run in their own array (not folded into render-deliverable's) because warn-decision-coverage only fires on deliverables/RISK-*.md Write while the other two fire on rd/*.md Write|Edit — different matchers, so they cannot share one block with render-deliverable's deliverables/**/*.md scope."
   ]
 }

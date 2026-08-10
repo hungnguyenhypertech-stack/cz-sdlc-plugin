@@ -57,7 +57,29 @@ is_allowed() {
       return $?
       ;;
     "red->green"|"red->red") return 0 ;;
-    "green->ai_review") return 0 ;;
+    "green->ai_review")
+      # Step 9 (test-designer's post-implementation AC/TC coverage
+      # re-verification) must produce deliverables/coverage/<rd-id>.md before
+      # gate 1 can begin. agents/test-designer.md already documents this as
+      # its step-9 deliverable output in prose, but nothing enforced it — a
+      # real 41-RD project (/cz:health-check, 2026-08-10) had ZERO files
+      # under deliverables/coverage/ despite test-designer's own tool grant
+      # including Write(deliverables/coverage/*.md); the Retrieval-quality
+      # dimension flagged it as a standing gap with no owning mechanism.
+      # Denies with its own specific message (rather than falling through to
+      # the generic "not in plan §6.1's table" message below, which would be
+      # misleading here — this transition IS in the table, it's this one
+      # precondition that's unmet) — same rationale as claimed->green above,
+      # which has the same generic-message imprecision but is left as-is
+      # since it's out of this change's scope.
+      local rd_id coverage_file
+      rd_id="$(basename "$FILE_PATH" .md)"
+      coverage_file="$DELIVERABLES_DIR/coverage/$rd_id.md"
+      if [ ! -f "$coverage_file" ]; then
+        cz_deny "green->ai_review refused for $rd_id: deliverables/coverage/$rd_id.md does not exist yet. Step 9 (test-designer's post-implementation coverage re-verification) must write this deliverable before gate 1 can begin. See agents/test-designer.md and docs/TRACEABILITY.md."
+      fi
+      return 0
+      ;;
     "ai_review->sec_review"|"ai_review->human_review"|"ai_review->rejected") return 0 ;;
     "sec_review->human_review"|"sec_review->rejected") return 0 ;;
     "human_review->accepted"|"human_review->rejected") return 0 ;;
@@ -66,7 +88,13 @@ is_allowed() {
     "blocked_hardstop->"*) return 0 ;;   # returns to prior state or stale; both allowed
     *"->stale") return 0 ;;              # any non-terminal state, normative edit
     *"->blocked_hardstop") return 0 ;;   # any non-terminal state, contradiction detected
-    *"->withdrawn") return 0 ;;          # any state, human descope
+    *"->withdrawn") return 0 ;;          # any state, human descope (dropped, no successor)
+    *"->superseded") return 0 ;;         # any state, replaced by a successor RD (e.g. a
+                                          # /cz:rd split) — real RDs use this state
+                                          # (schemas/rd.schema.json, docs/TRACEABILITY.md)
+                                          # but it was missing from this table, meaning
+                                          # every such transition predates this guard or
+                                          # bypassed it; added so it's actually enforced.
     "accepted->stale") return 0 ;;
     *) return 1 ;;
   esac
@@ -76,9 +104,9 @@ if ! is_allowed "$CURRENT_STATE" "$NEW_STATE"; then
   cz_deny "illegal RD transition $CURRENT_STATE -> $NEW_STATE for $FILE_PATH (not in plan §6.1's table)"
 fi
 
-# Terminal state: withdrawn has no outbound edges at all.
-if [ "$CURRENT_STATE" = "withdrawn" ]; then
-  cz_deny "withdrawn is terminal — $FILE_PATH cannot transition out of it"
+# Terminal states: withdrawn and superseded have no outbound edges at all.
+if [ "$CURRENT_STATE" = "withdrawn" ] || [ "$CURRENT_STATE" = "superseded" ]; then
+  cz_deny "$CURRENT_STATE is terminal — $FILE_PATH cannot transition out of it"
 fi
 
 exit 0

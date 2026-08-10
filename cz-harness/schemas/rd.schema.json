@@ -65,8 +65,9 @@
     "red_skipped": { "type": "boolean", "description": "Permanent once true. Only ever true under profile: light AND layer: 1." },
     "state": {
       "type": "string",
-      "enum": ["draft", "blocked_dep", "ready", "claimed", "red", "green", "ai_review", "sec_review", "human_review", "accepted", "rejected", "stale", "blocked_hardstop", "withdrawn"]
+      "enum": ["draft", "blocked_dep", "ready", "claimed", "red", "green", "ai_review", "sec_review", "human_review", "accepted", "rejected", "stale", "blocked_hardstop", "withdrawn", "superseded"]
     },
+    "notes": { "type": "string", "description": "Free-text change-log — why this version changed (which AC edit, which DoR-rule failure, a content_hash recompute/no-recompute rationale, a split/supersession pointer to the successor RD(s)). Not covered by content_hash. Optional on version 1; hooks/warn-rd-changelog.sh logs an advisory (non-blocking) when version >= 2 and this is empty/absent — see docs/TRACEABILITY.md." },
     "assigned_agent": { "type": ["string", "null"] },
     "claimed_at": { "type": ["string", "null"], "format": "date-time" },
     "tests": {
