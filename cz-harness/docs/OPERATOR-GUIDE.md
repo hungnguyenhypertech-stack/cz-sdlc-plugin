@@ -203,7 +203,17 @@ open hard-stop is the first thing it does, on every invocation. There is no path
 - **`/cz:viva <project-code>`** before a stakeholder review or audit conversation — it rehearses
   the kinds of questions a governance review will ask, grounded in the project's own artifacts,
   so you aren't improvising answers on the day.
+- **`/cz:health-check <project-code>`** when what feels "stuck" isn't the board but your
+  confidence in the documentation itself — you have a lot of RDs, reviews, and deliverables and
+  no longer know how much of it is actually correct, current, and traceable. Unlike `/cz:report`
+  (which requires at least one approved gate and blocks on orphans under `standard`/`heavy`),
+  this has no gate and is safe to run on day one or mid-project: it scores 7 dimensions —
+  coverage, change coupling, freshness, orphan rate, review evidence, decision coverage,
+  retrieval quality — and writes `deliverables/HEALTH-CHECK-<project-code>.md` with a citation
+  behind every number. A good pre-flight before `/cz:report`, since it surfaces the same orphans
+  `/cz:report` would block on, plus 3 dimensions the RTM's graph check doesn't cover at all.
 
 If you take away one thing from this guide: the board and `/cz:status` are cheap and safe to
 check anytime — check them first. `/cz:audit` and `/cz:rebuild-state` exist specifically for the
-moment a quick look isn't enough.
+moment a quick look isn't enough, and `/cz:health-check` for when the doubt is about the
+documentation's quality rather than the board's accuracy.

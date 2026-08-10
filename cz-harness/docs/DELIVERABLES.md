@@ -50,6 +50,7 @@ untouched by this system.
 | Traceability matrix | agentops | `deliverables/RTM-<proj>.md` |
 | Weekly status | agentops | `deliverables/WEEKLY-<proj>.md` |
 | Case study | agentops | `deliverables/CASE-STUDY-<proj>.md` |
+| Health check (7-dimension memory-quality report) | agentops (via `/cz:health-check`, no gate) | `deliverables/HEALTH-CHECK-<proj>.md` |
 | Plain-language explainer | ad hoc (via `/cz:explain`) | `deliverables/EXPLAIN-<rd-id>.md` (optional) |
 | Delivery/Understanding log (phase-level) | init/scope/spec/rd/report/audit/rebuild-state/viva commands (append, own fragment only) | `deliverables/understanding-log/<phase>.md` (e.g. `init.md`, `scope.md`, `spec.md`, `rd-commits.md`, `report.md`, `audit.md`, `rebuild-state.md`, `viva.md`) |
 | Delivery/Understanding log (per-RD) | test-designer (`/cz:dor`), ai-reviewer/human (`/cz:gate`) (append, own fragment only) | `deliverables/understanding-log/rd/<rd-id>.md` |
@@ -69,7 +70,7 @@ Every deliverable starts with:
 ---
 kind: SCOPE | SPEC | MODULEMAP | ARCH | ADR | WBS | EST | RISK |
       DELEGATION-MAP | DOR | COVERAGE | DEVBOOK | REVIEW-GATE1 |
-      REVIEW-GATE2 | RTM | WEEKLY | CASE-STUDY | EXPLAIN
+      REVIEW-GATE2 | RTM | WEEKLY | CASE-STUDY | EXPLAIN | HEALTH-CHECK
 agent: ba | sa | planner | risk-gov | test-designer | dev |
        ai-reviewer | sec-reviewer | agentops
 rd: <RD-ID> | null        # null for project-level docs (SCOPE, SPEC, RTM, ...)
