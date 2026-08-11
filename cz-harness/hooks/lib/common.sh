@@ -377,6 +377,26 @@ cz_iso_to_epoch() {
   return 0
 }
 
+# cz_json_str_field <field-name> <json-string>: escape-aware scalar extractor
+# for hook input JSON. Unlike cz_json_field (which reads from a file), this
+# operates on a raw JSON string passed as $2 (or read from stdin), correctly
+# treating \" inside string values as an escaped quote rather than a
+# terminator. The previous inline pattern `grep -o '"f":[^"]*"'` truncated at
+# the first raw `"` byte, so a Write tool_input whose content field contained
+# any JSON (e.g. {"human_approved": true}) was always cut before the relevant
+# key became visible — making the human_approved forgery check and the sub-pm
+# approval-verb ban dead code against any realistic JSON payload. Matches only
+# string-valued fields; bare numeric/bool/null fields are not in scope for the
+# hook-input extractions this replaces. Always returns 0 (|| true) so an
+# absent field yields "" without killing the caller under set -e.
+cz_json_str_field() {
+  local field="$1" json="${2:-$(cat)}"
+  printf '%s' "$json" \
+    | grep -oE "\"${field}\"[[:space:]]*:[[:space:]]*\"(\\\\.|[^\"\\\\])*\"" \
+    | head -1 \
+    | sed -E 's/^"[^"]*"[[:space:]]*:[[:space:]]*"(.*)"$/\1/' || true
+}
+
 # cz_json_field <json-file> <top-level-key>: minimal, dependency-free scalar
 # reader for flat JSON (string or bare value) — same tradeoff as cz_rd_field.
 cz_json_field() {

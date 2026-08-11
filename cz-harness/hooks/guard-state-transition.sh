@@ -7,7 +7,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/lib/common.sh"
 
 HOOK_INPUT="$(cat)"
-FILE_PATH="$(echo "$HOOK_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"(.*)"/\1/')"
+FILE_PATH="$(cz_json_str_field file_path "$HOOK_INPUT")"
 
 case "$FILE_PATH" in
   */rd/*.md) : ;;
@@ -50,7 +50,7 @@ is_allowed() {
     "claimed->green")
       # Only valid under profile: light AND layer: 1 AND red_skipped:true recorded.
       local profile layer red_skipped
-      profile="$(grep -oE 'profile:[[:space:]]*[a-z]+' "$GATES_YAML" 2>/dev/null | awk '{print $2}')"
+      profile="$(grep -m1 -oE '^profile:[[:space:]]*[a-z]+' "$GATES_YAML" 2>/dev/null | sed -E 's/^profile:[[:space:]]*//')"
       layer="$(cz_rd_field "$FILE_PATH" layer 2>/dev/null | tr -d ' ')"
       red_skipped="$(cz_rd_field "$FILE_PATH" red_skipped 2>/dev/null | tr -d ' ')"
       [ "$profile" = "light" ] && [ "$layer" = "1" ] && [ "$red_skipped" = "true" ]

@@ -12,7 +12,7 @@ source "$DIR/lib/common.sh"
 source "$DIR/lib/test-runner-adapter.sh"
 
 HOOK_INPUT="$(cat)"
-FILE_PATH="$(echo "$HOOK_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"(.*)"/\1/')"
+FILE_PATH="$(cz_json_str_field file_path "$HOOK_INPUT")"
 
 # Only src/** writes are in scope for this guard.
 case "$FILE_PATH" in
@@ -75,6 +75,7 @@ RD_PATH="$(cz_rd_path "$RD_ID")"
 
 RD_STATE="$(cz_rd_field "$RD_PATH" state)"
 RD_HASH="$(cz_rd_field "$RD_PATH" content_hash)"
+RD_HASH="${RD_HASH%\"}"; RD_HASH="${RD_HASH#\"}"
 RED_LOG="$(cz_rd_field "$RD_PATH" evidence.red_log 2>/dev/null || true)"
 # fallback: nested YAML — evidence.red_log is not a flat top-level key, so read it
 # from the conventional path if the flat read comes back empty.
@@ -100,6 +101,19 @@ fi
 
 if [ "$RD_STATE" != "claimed" ] && [ "$RD_STATE" != "red" ]; then
   cz_deny "$RD_ID is in state '$RD_STATE' — src/** may only be written while claimed or red (or green+ during refactor)"
+fi
+
+# Light-profile red-skip: all three conditions must hold simultaneously —
+# profile:light AND layer:1 AND red_skipped:true on this RD. Mirrors the
+# identical three-condition check in guard-state-transition.sh's claimed->green
+# gate; neither check can be loosened without also loosening the other.
+_profile="$(grep -m1 -oE '^profile:[[:space:]]*[a-z]+' "$GATES_YAML" 2>/dev/null | sed -E 's/^profile:[[:space:]]*//' || true)"
+if [ "$_profile" = "light" ]; then
+  _layer="$(cz_rd_field "$RD_PATH" layer | tr -d ' ')"
+  _red_skipped="$(cz_rd_field "$RD_PATH" red_skipped | tr -d ' ')"
+  if [ "$_layer" = "1" ] && [ "$_red_skipped" = "true" ]; then
+    exit 0
+  fi
 fi
 
 [ -f "$RED_LOG" ] || cz_deny "no red log at $RED_LOG for $RD_ID — test-designer must produce a proven-failing run before dev writes code (RD not skippable: see docs/LIGHTWEIGHT-MODE.md for the one named exception)"

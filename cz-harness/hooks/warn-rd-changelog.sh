@@ -20,7 +20,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/lib/common.sh"
 
 HOOK_INPUT="$(cat)"
-FILE_PATH="$(echo "$HOOK_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"(.*)"/\1/')"
+FILE_PATH="$(cz_json_str_field file_path "$HOOK_INPUT")"
 
 [ -n "$FILE_PATH" ] || exit 0
 case "$FILE_PATH" in

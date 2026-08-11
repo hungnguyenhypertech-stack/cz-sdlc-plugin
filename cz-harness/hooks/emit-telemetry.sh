@@ -9,7 +9,8 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/lib/common.sh"
 
 HOOK_INPUT="$(cat)"
-TOOL_NAME="$(echo "$HOOK_INPUT" | grep -o '"tool_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"(.*)"/\1/' || echo "unknown")"
+TOOL_NAME="$(cz_json_str_field tool_name "$HOOK_INPUT")"
+TOOL_NAME="${TOOL_NAME:-unknown}"
 
 # CZ_ACTING_AGENT/CZ_ACTIVE_RD are almost never actually set (no command or
 # agent definition exports them, and env vars can't survive across separate

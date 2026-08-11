@@ -7,8 +7,8 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/lib/common.sh"
 
 HOOK_INPUT="$(cat)"
-FILE_PATH="$(echo "$HOOK_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:"(.*)"/\1/')"
-CONTENT="$(echo "$HOOK_INPUT" | grep -o '"content"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 || true)"
+FILE_PATH="$(cz_json_str_field file_path "$HOOK_INPUT")"
+CONTENT="$(cz_json_unescape "$(cz_json_str_field content "$HOOK_INPUT")")"
 
 # Scratch file for the telemetry append-only check below (M3 audit fix). Kept
 # at top-level scope (not inside the case arm) so a single EXIT trap can
