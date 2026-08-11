@@ -20,6 +20,28 @@ MERGED_DIR="$RUN_DIR/merged"
 PORT="${USAGE_MONITOR_PORT:-8791}"
 PIDFILE="$RUN_DIR/server.pid"
 
+# Resolve an interpreter that actually RUNS. Windows ships an App Execution
+# Alias stub at python3.exe that exists and always fails ("Python was not
+# found; run without arguments to install from the Microsoft Store"), so a
+# bare `python3` — or a `command -v python3` guard — made this whole script
+# die at the merge step with that message and never start the server. Mirrors
+# cz_python in hooks/lib/common.sh; kept inline because this script is
+# standalone and deliberately does not source the hook library.
+PYTHON_BIN=""
+for _c in "${CZ_PYTHON_BIN:-}" python3 python py; do
+  [ -n "$_c" ] || continue
+  command -v "$_c" >/dev/null 2>&1 || continue
+  if "$_c" -c 'import sys; sys.exit(0)' >/dev/null 2>&1; then
+    PYTHON_BIN="$_c"
+    break
+  fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+  echo "No working python3/python interpreter found — cannot merge logs or serve the dashboard." >&2
+  echo "Set CZ_PYTHON_BIN to a working interpreter, or open board/usage-monitor.html directly (sample data + manual file picker, no server needed)." >&2
+  exit 1
+fi
+
 if [ ! -f "$BASE_HTML" ]; then
   echo "Could not find usage-monitor.html (looked at $BASE_HTML)." >&2
   exit 1
@@ -38,7 +60,7 @@ rm -f "$MERGED_DIR"/*.jsonl "$MERGED_DIR"/*.subagents.json
 # top-level *.jsonl — every thinking/tool_use/tool_result/text step a
 # Task/Agent-spawned subagent produced, keyed by sessionId then toolUseId
 # (the toolUseId links back to the parent transcript's Task tool_use block).
-python3 - "$PROJECTS_DIR" "$MERGED_DIR" <<'PYEOF'
+"$PYTHON_BIN" - "$PROJECTS_DIR" "$MERGED_DIR" <<'PYEOF'
 import json, os, sys
 
 projects_dir, merged_dir = sys.argv[1], sys.argv[2]
@@ -206,7 +228,7 @@ if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
   kill "$(cat "$PIDFILE")" 2>/dev/null || true
   sleep 0.3
 fi
-( cd "$RUN_DIR" && nohup python3 -m http.server "$PORT" --bind 127.0.0.1 >/dev/null 2>&1 & echo $! > "$PIDFILE" )
+( cd "$RUN_DIR" && nohup "$PYTHON_BIN" -m http.server "$PORT" --bind 127.0.0.1 >/dev/null 2>&1 & echo $! > "$PIDFILE" )
 sleep 0.4
 
 URL="http://127.0.0.1:$PORT/index.html"

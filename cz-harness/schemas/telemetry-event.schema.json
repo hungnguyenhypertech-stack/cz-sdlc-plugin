@@ -12,7 +12,7 @@
     "rd": {
       "description": "Join key for traceability/costing/board. Real string ids MUST match the pattern below. A large, legitimate class of events has no RD at all: project-level phase work (phases 0-6, 10 — ba/sa/planner/risk-gov/agentops never hold an rd/*.md claim lock, so there is nothing to resolve), and any tool call whose text carries no RD id while zero or >1 locks are held (genuinely ambiguous — see hooks/lib/common.sh's 'Identity fallback' section). JSON `null` (not the string \"null\") is the deliberate, schema-legal way to represent 'no RD context at emission time' — emitters must never coerce this into a fake pattern-matching placeholder just to satisfy this field.",
       "type": ["string", "null"],
-      "pattern": "^RD-[A-Za-z0-9]+-[0-9]+\\.[0-9]+$"
+      "pattern": "^RD-[A-Za-z0-9]+-[0-9]+\\.[0-9]+[a-z]?$"
     },
     "rd_version": { "type": "integer" },
     "rd_hash": { "type": "string" },

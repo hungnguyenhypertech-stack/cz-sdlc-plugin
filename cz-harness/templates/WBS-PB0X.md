@@ -1,3 +1,10 @@
+---
+kind: WBS
+agent: planner
+rd: null
+step: 4
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: WBS-PB0X.md
   Purpose: Break the project down into a Work Breakdown Structure using

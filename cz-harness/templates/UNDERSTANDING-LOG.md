@@ -1,3 +1,10 @@
+---
+kind: EXPLAIN
+agent: agentops
+rd: null
+step: n/a
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: UNDERSTANDING-LOG.md
   Purpose: Append-only log of "Understanding Gate" questions and their

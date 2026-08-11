@@ -35,12 +35,46 @@
 # Usage: bash hooks/tests/test-project-state.sh
 
 set -uo pipefail
+
+# --- portability helpers (see hooks/lib/common.sh for the product-side twins) --
+# cz_test_tmpdir: a scratch dir both the shell AND a native python can open.
+# Under Git Bash/MSYS, mktemp -d returns a virtual path (/tmp/...) that a
+# native Windows python cannot open, so every python-based assertion below
+# silently read an empty file and failed. cygpath -m yields a form both
+# accept; no-op on Linux/macOS, where cygpath does not exist.
+cz_test_tmpdir() {
+  local d
+  d="$(command mktemp -d)"
+  if command -v cygpath >/dev/null 2>&1; then
+    d="$(cygpath -m "$d")"
+  fi
+  echo "$d"
+}
+
+# cz_test_python: an interpreter that actually RUNS. `python3` on Windows is
+# an App Execution Alias stub that exists and always fails. Mirrors cz_python
+# in hooks/lib/common.sh.
+cz_test_python() {
+  local c
+  for c in "${CZ_PYTHON_BIN:-}" python3 python py; do
+    [ -n "$c" ] || continue
+    command -v "$c" >/dev/null 2>&1 || continue
+    if "$c" -c 'import sys; sys.exit(0)' >/dev/null 2>&1; then
+      echo "$c"
+      return 0
+    fi
+  done
+  echo "python3"
+  return 0
+}
+PYBIN="$(cz_test_python)"
+# ------------------------------------------------------------------------------
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$DIR/../project-state.sh"
 BOARD_SCHEMA="$DIR/../../schemas/board-state.schema.json"
 
 export CZ_ROOT
-CZ_ROOT="$(mktemp -d)"
+CZ_ROOT="$(cz_test_tmpdir)"
 trap 'rm -rf "$CZ_ROOT"' EXIT
 mkdir -p "$CZ_ROOT/rd" "$CZ_ROOT/state/locks" "$CZ_ROOT/state/heartbeats" \
          "$CZ_ROOT/telemetry" "$CZ_ROOT/gate-records" "$CZ_ROOT/config"
@@ -140,7 +174,7 @@ check "project-state.sh exits 0" "$([ "$HOOK_EXIT" -eq 0 ] && echo 1 || echo 0)"
 BOARD_FILE="$CZ_ROOT/state/board.json"
 check "state/board.json was written" "$([ -f "$BOARD_FILE" ] && echo 1 || echo 0)"
 
-RD1_ENTRY="$(python3 -c "
+RD1_ENTRY="$("$PYBIN" -c "
 import json
 d = json.load(open('$BOARD_FILE'))
 for rd in d['rds']:
@@ -150,21 +184,21 @@ for rd in d['rds']:
 ")"
 echo "  RD-TEST-001.01 entry: $RD1_ENTRY"
 
-COST_OK="$(python3 -c "
+COST_OK="$("$PYBIN" -c "
 import json
 rd = json.loads('''$RD1_ENTRY''')
 print(1 if abs(rd.get('cost_usd', -1) - 0.20) < 1e-6 else 0)
 ")"
 check "cost_usd for RD-TEST-001.01 sums only its own cost-bearing events (0.12+0.08=0.20, not 99.20)" "$COST_OK"
 
-LEASH_OK="$(python3 -c "
+LEASH_OK="$("$PYBIN" -c "
 import json
 rd = json.loads('''$RD1_ENTRY''')
 print(1 if rd.get('leash') == 'A+' else 0)
 ")"
 check "leash for RD-TEST-001.01 is populated from delegation.leash (A+)" "$LEASH_OK"
 
-RD2_ENTRY="$(python3 -c "
+RD2_ENTRY="$("$PYBIN" -c "
 import json
 d = json.load(open('$BOARD_FILE'))
 for rd in d['rds']:
@@ -174,14 +208,14 @@ for rd in d['rds']:
 ")"
 echo "  RD-TEST-002.01 entry: $RD2_ENTRY"
 
-NULL_COST_OK="$(python3 -c "
+NULL_COST_OK="$("$PYBIN" -c "
 import json
 rd = json.loads('''$RD2_ENTRY''')
 print(1 if rd.get('cost_usd', 'MISSING') is None else 0)
 ")"
 check "cost_usd for RD-TEST-002.01 (no telemetry at all) is JSON null, not a fabricated 0" "$NULL_COST_OK"
 
-LEASH2_OK="$(python3 -c "
+LEASH2_OK="$("$PYBIN" -c "
 import json
 rd = json.loads('''$RD2_ENTRY''')
 print(1 if rd.get('leash') == 'A' else 0)
@@ -189,7 +223,7 @@ print(1 if rd.get('leash') == 'A' else 0)
 check "leash for RD-TEST-002.01 is populated from delegation.leash (A)" "$LEASH2_OK"
 
 # Full board.json must validate against schemas/board-state.schema.json.
-SCHEMA_VALID="$(python3 - "$BOARD_FILE" "$BOARD_SCHEMA" <<'PYEOF'
+SCHEMA_VALID="$("$PYBIN" - "$BOARD_FILE" "$BOARD_SCHEMA" <<'PYEOF'
 import json, sys
 try:
     import jsonschema
@@ -208,21 +242,21 @@ echo "  board.json schema validation: $SCHEMA_VALID"
 check "state/board.json validates against schemas/board-state.schema.json" \
   "$([ "$SCHEMA_VALID" = "valid" ] && echo 1 || echo 0)"
 
-AGENT_STATES="$(python3 -c "
+AGENT_STATES="$("$PYBIN" -c "
 import json
 d = json.load(open('$BOARD_FILE'))
 print(json.dumps({a['agent']: a['agent_state'] for a in d['agents']}))
 ")"
 echo "  agents agent_state map: $AGENT_STATES"
 
-STALE_DOWNGRADED="$(python3 -c "
+STALE_DOWNGRADED="$("$PYBIN" -c "
 import json
 m = json.loads('''$AGENT_STATES''')
 print(1 if m.get('ai-reviewer') == 'idle' else 0)
 ")"
 check "heartbeat pinned to an accepted RD (RD-TEST-003.01) is downgraded from executing to idle, not left to false-stall forever" "$STALE_DOWNGRADED"
 
-INFLIGHT_UNCHANGED="$(python3 -c "
+INFLIGHT_UNCHANGED="$("$PYBIN" -c "
 import json
 m = json.loads('''$AGENT_STATES''')
 print(1 if m.get('dev') == 'executing' else 0)

@@ -41,6 +41,18 @@ layer: 0                      # 0 = foundation, 1 = surface (from MODULEMAP-PB0X
                               # Drives dependency ordering and the Light red-skip rule.
 
 # --- The requirement itself -----------------------------------------------------
+summary: "Retain and flag last-good branch figures when a source fails"
+                              # One-line (<=120 char) human-scannable gloss of
+                              # statement — this is the board's RD-table Summary
+                              # column (hooks/project-state.sh reads it via
+                              # cz_rd_field, schemas/rd.schema.json declares it).
+                              # It was missing from this template entirely, so
+                              # every RD authored from it rendered a blank
+                              # Summary column on the board. Not covered by
+                              # content_hash — editing it never invalidates
+                              # tests. MUST be a single-line double-quoted
+                              # string: cz_rd_field is a single-line scalar
+                              # reader, so a `>` or `|` block would read empty.
 statement: >
   If a branch source fails during the nightly refresh, the dashboard must
   retain and flag that branch's last reconciled figures rather than show

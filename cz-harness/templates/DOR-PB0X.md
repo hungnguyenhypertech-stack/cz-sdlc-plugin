@@ -1,3 +1,11 @@
+---
+kind: DOR
+agent: test-designer
+rd: <RD-ID>
+step: 7
+verdict: pass
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: DOR-PB0X.md
   Purpose: Definition of Ready checklist. This is evaluated PER RD, not

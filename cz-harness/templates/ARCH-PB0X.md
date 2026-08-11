@@ -1,3 +1,10 @@
+---
+kind: ARCH
+agent: sa
+rd: null
+step: 3
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: ARCH-PB0X.md
   Purpose: Record architecture decisions as ADRs. The hard rule this file

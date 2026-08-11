@@ -1,3 +1,10 @@
+---
+kind: DELEGATION-MAP
+agent: risk-gov
+rd: null
+step: 6
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: DELEGATION-MAP-PB0X.md
   Purpose: Per-RD table of how much autonomy an AI agent has to execute

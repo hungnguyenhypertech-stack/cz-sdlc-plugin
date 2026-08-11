@@ -1,3 +1,10 @@
+---
+kind: DEVBOOK
+agent: dev
+rd: <RD-ID>
+step: 8
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: devbook-entry-template.md
   Purpose: A single Dev Book entry, the atomic unit that gets pasted into

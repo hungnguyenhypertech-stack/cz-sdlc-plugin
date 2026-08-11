@@ -1,3 +1,10 @@
+---
+kind: EST
+agent: planner
+rd: null
+step: 5
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: EST-PB0X.md
   Purpose: Roll up three-point estimates from the RD level, up through

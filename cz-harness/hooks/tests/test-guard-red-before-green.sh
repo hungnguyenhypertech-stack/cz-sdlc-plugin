@@ -14,15 +14,49 @@
 # Usage: bash hooks/tests/test-guard-red-before-green.sh
 
 set -uo pipefail
+
+# --- portability helpers (see hooks/lib/common.sh for the product-side twins) --
+# cz_test_tmpdir: a scratch dir both the shell AND a native python can open.
+# Under Git Bash/MSYS, mktemp -d returns a virtual path (/tmp/...) that a
+# native Windows python cannot open, so every python-based assertion below
+# silently read an empty file and failed. cygpath -m yields a form both
+# accept; no-op on Linux/macOS, where cygpath does not exist.
+cz_test_tmpdir() {
+  local d
+  d="$(command mktemp -d)"
+  if command -v cygpath >/dev/null 2>&1; then
+    d="$(cygpath -m "$d")"
+  fi
+  echo "$d"
+}
+
+# cz_test_python: an interpreter that actually RUNS. `python3` on Windows is
+# an App Execution Alias stub that exists and always fails. Mirrors cz_python
+# in hooks/lib/common.sh.
+cz_test_python() {
+  local c
+  for c in "${CZ_PYTHON_BIN:-}" python3 python py; do
+    [ -n "$c" ] || continue
+    command -v "$c" >/dev/null 2>&1 || continue
+    if "$c" -c 'import sys; sys.exit(0)' >/dev/null 2>&1; then
+      echo "$c"
+      return 0
+    fi
+  done
+  echo "python3"
+  return 0
+}
+PYBIN="$(cz_test_python)"
+# ------------------------------------------------------------------------------
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$DIR/../guard-red-before-green.sh"
 
-SCRATCH="$(mktemp -d)"
+SCRATCH="$(cz_test_tmpdir)"
 trap 'rm -rf "$SCRATCH"' EXIT
 mkdir -p "$SCRATCH/rd" "$SCRATCH/state/locks" "$SCRATCH/evidence/RD-TEST-002.01" "$SCRATCH/src/reconciliation"
 
 # A cwd that is deliberately NOT CZ_ROOT — this is the case M1 broke.
-OTHER_CWD="$(mktemp -d)"
+OTHER_CWD="$(cz_test_tmpdir)"
 trap 'rm -rf "$OTHER_CWD"' EXIT
 
 cat > "$SCRATCH/state/locks/RD-TEST-002.01.lock" <<'EOF'

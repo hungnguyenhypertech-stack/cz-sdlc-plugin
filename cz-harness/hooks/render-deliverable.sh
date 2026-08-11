@@ -31,9 +31,13 @@ CSS_SRC="$PLUGIN_ROOT/templates/deliverables/style.css"
 mkdir -p "$DELIVERABLES_DIR/_assets"
 cp -f "$CSS_SRC" "$DELIVERABLES_DIR/_assets/style.css" 2>/dev/null || true
 
-PYTHON_BIN="$(command -v python3 || true)"
+# cz_python probes by EXECUTING a candidate — `command -v python3` alone passed
+# on Windows against an App Execution Alias stub that always fails, so this hook
+# reported "render failed" on every single deliverable write and nothing (not
+# even deliverables/index.json) was ever produced. See cz_python in lib/common.sh.
+PYTHON_BIN="$(cz_python)"
 if [ -z "$PYTHON_BIN" ]; then
-  cz_log "render-deliverable: python3 not found, skipping HTML render for $FILE_PATH (non-blocking)"
+  cz_log "render-deliverable: no working python3/python interpreter found, skipping HTML render for $FILE_PATH (non-blocking). Set CZ_PYTHON_BIN to point at one."
   exit 0
 fi
 

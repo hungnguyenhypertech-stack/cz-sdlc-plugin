@@ -33,10 +33,42 @@ esac
 # lock exists at all, such as a manual/direct edit outside a claimed loop).
 RD_ID="${CZ_ACTIVE_RD:-}"
 [ -n "$RD_ID" ] || RD_ID="$(cz_sole_lock_rd)"
-if [ -z "$RD_ID" ] && [ -f "$FILE_PATH" ]; then
-  RD_ID="$(grep -oE 'RD-[A-Za-z0-9]+-[0-9]+\.[0-9]+' "$FILE_PATH" | head -1 || true)"
+
+# Under bounded/wave concurrency (>1 claim held) cz_sole_lock_rd returns ""
+# by construction, and the on-disk grep below cannot help for a file that does
+# not exist yet — so a brand-new src/** file was denied outright with "claim an
+# RD via /cz:build first" even though the RD *was* claimed and the incoming
+# content *did* carry its `# RD-<id>` annotation. That made two of the three
+# concurrency modes /cz:init offers unusable for new code.
+#
+# Resolve from the INCOMING content instead (the write hasn't landed yet, so
+# this is the only place that annotation exists), and disambiguate the
+# shared-file case this guard's header warns about by intersecting against the
+# set of RDs actually claimed right now: an annotation naming an RD nobody
+# holds is not the RD being worked on. Only an unambiguous single match is
+# accepted — anything else falls through to the pre-existing behavior.
+if [ -z "$RD_ID" ]; then
+  CONTENT="$(echo "$HOOK_INPUT" \
+    | grep -oE '"(content|new_string)"[[:space:]]*:[[:space:]]*"([^"\\]|\\.)*"' \
+    | head -1 || true)"
+  CANDIDATES="$(echo "$CONTENT" | grep -oE 'RD-[A-Za-z0-9]+-[0-9]+\.[0-9]+[a-z]?' | sort -u || true)"
+  if [ -n "$CANDIDATES" ]; then
+    LOCKED="$(cz_locked_rd_ids)"
+    MATCHES=""
+    if [ -n "$LOCKED" ]; then
+      MATCHES="$(echo "$CANDIDATES" | grep -Fxf <(echo "$LOCKED") || true)"
+    fi
+    if [ "$(echo "$MATCHES" | grep -c .)" -eq 1 ]; then
+      RD_ID="$(echo "$MATCHES" | head -1)"
+      cz_log "resolved $RD_ID from the incoming write's own RD annotation (>1 claim held, so sole-lock resolution was unavailable)"
+    fi
+  fi
 fi
-[ -n "$RD_ID" ] || cz_deny "no active RD context for write to $FILE_PATH — claim an RD via /cz:build first"
+
+if [ -z "$RD_ID" ] && [ -f "$FILE_PATH" ]; then
+  RD_ID="$(grep -oE 'RD-[A-Za-z0-9]+-[0-9]+\.[0-9]+[a-z]?' "$FILE_PATH" | head -1 || true)"
+fi
+[ -n "$RD_ID" ] || cz_deny "no active RD context for write to $FILE_PATH — annotate the file with '# RD-<id>' for one of the currently-claimed RDs ($(cz_locked_rd_ids | paste -sd, - || echo 'none claimed')), or claim an RD via /cz:build first"
 
 RD_PATH="$(cz_rd_path "$RD_ID")"
 [ -f "$RD_PATH" ] || cz_deny "RD record not found: $RD_PATH"

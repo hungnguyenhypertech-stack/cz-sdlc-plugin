@@ -1,3 +1,10 @@
+---
+kind: SCOPE
+agent: ba
+rd: null
+step: 0
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: SCOPE-PB0X.md
   Purpose: Define what this project IS and IS NOT, and who has authority

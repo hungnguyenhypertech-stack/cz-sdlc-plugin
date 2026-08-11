@@ -1,3 +1,10 @@
+---
+kind: DEVBOOK
+agent: dev
+rd: <RD-ID>
+step: 8
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: DEVBOOK-PB0X.md
   Purpose: Per-RD development log. This is the durable record of what the

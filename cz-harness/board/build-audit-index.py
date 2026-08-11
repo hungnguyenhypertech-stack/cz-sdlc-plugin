@@ -1,20 +1,45 @@
 #!/usr/bin/env python3
 """Build gate-records/index.json and telemetry rollup for the board's Audit & Outcomes tab.
 
-Regenerate after gate-records/ or telemetry/events.jsonl change:
-    python3 board/build-audit-index.py
+Regenerate after gate-records/ or telemetry/events.jsonl change. Run from the
+project root, or point it at one explicitly — it never infers the project from
+its own install location:
+    python3 board/build-audit-index.py                  # cwd is the project
+    python3 .../board/build-audit-index.py /path/proj   # explicit project root
+    CZ_ROOT=/path/proj python3 .../build-audit-index.py # or via env
 """
 import json
+import os
 import re
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+# ROOT is the PROJECT root, never this script's own location. Deriving it from
+# __file__ (as this did) resolves to the plugin install directory once the
+# plugin is installed from a marketplace — so it read the plugin's own
+# (nonexistent) gate-records/ and then crashed trying to write index.json
+# there, meaning the board's Audit & Outcomes tab had no data source at all in
+# any real project. Resolution order mirrors hooks/lib/common.sh: an explicit
+# override, then Claude Code's project dir, then cwd (correct when run as the
+# documented `python3 board/build-audit-index.py` from the project root).
+ROOT = Path(
+    os.environ.get("CZ_ROOT")
+    or os.environ.get("CLAUDE_PROJECT_DIR")
+    or (sys.argv[1] if len(sys.argv) > 1 else "")
+    or os.getcwd()
+).resolve()
 GATE_DIR = ROOT / "gate-records"
 TELEMETRY = ROOT / "telemetry" / "events.jsonl"
 DELIVERABLES_DIR = ROOT / "deliverables"
 
 PB_RE = re.compile(r"^PB(\d+)-(.+)\.json$")
-RD_RE = re.compile(r"^(RD-[A-Z0-9]+-\d+\.\d+[a-z]?)-(dor|gate)\.json$")
+# [A-Za-z0-9]+ for the project code, matching schemas/rd.schema.json and
+# schemas/telemetry-event.schema.json. This was [A-Z0-9]+ (uppercase only), so
+# a lowercase-coded id — legal under both schemas — was SILENTLY dropped from
+# the index: its gate record simply never appeared on the Audit tab, with no
+# warning. The trailing [a-z]? stays: see the id-pattern note in
+# schemas/telemetry-event.schema.json for why a suffixed id is legal.
+RD_RE = re.compile(r"^(RD-[A-Za-z0-9]+-\d+\.\d+[a-z]?)-(dor|gate)\.json$")
 
 
 def load(path):
@@ -155,6 +180,9 @@ def main():
     audit_rows = build_audit_rows()
     outcome = build_outcome_metrics(audit_rows)
     out = {"audit": audit_rows, "outcome": outcome}
+    # A project with no gate records yet still needs a readable (empty) index —
+    # board.html fetches it unconditionally and shows a load error on a 404.
+    GATE_DIR.mkdir(parents=True, exist_ok=True)
     out_path = GATE_DIR / "index.json"
     out_path.write_text(json.dumps(out, indent=2) + "\n")
     print(f"wrote {out_path} ({len(audit_rows)} audit rows)")

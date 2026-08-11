@@ -14,7 +14,15 @@ source "$DIR/lib/common.sh"
 mkdir -p "$STATE_DIR"
 BOARD_FILE="$STATE_DIR/board.json"
 
-PROFILE="$(grep -oE '^profile:[[:space:]]*[a-z]+' "$GATES_YAML" 2>/dev/null | awk '{print $2}')"
+# `|| true`: config/gates.yaml is absent in any project not scaffolded by
+# /cz:init (and briefly during scaffolding itself). Under set -e + pipefail a
+# grep that matches nothing — or whose file does not exist — exits nonzero and
+# aborts this whole hook before board.json is ever written, so every PostToolUse
+# call surfaces a hook error and the board silently never materializes.
+# `2>/dev/null` suppresses the MESSAGE, not the EXIT CODE — the redirect alone
+# was never enough. This is the same class of bug cz_json_field's header in
+# lib/common.sh already warns about; it was fixed there but not here.
+PROFILE="$(grep -oE '^profile:[[:space:]]*[a-z]+' "$GATES_YAML" 2>/dev/null | awk '{print $2}' || true)"
 PROFILE="${PROFILE:-standard}"
 
 # CZ_PROJECT_CODE is meant to be set by the invoking command/agent runtime,
@@ -28,7 +36,7 @@ if [ -z "$PROJECT_CODE" ] && [ -f "$GATE_RECORDS_DIR/PB0-scope.json" ]; then
   PROJECT_CODE="$(cz_json_field "$GATE_RECORDS_DIR/PB0-scope.json" project)"
 fi
 PROJECT_CODE="${PROJECT_CODE:-unknown}"
-MAX_IN_FLIGHT="$(grep -oE 'max_in_flight:[[:space:]]*[0-9]+' "$GATES_YAML" 2>/dev/null | head -1 | awk '{print $2}')"
+MAX_IN_FLIGHT="$(grep -oE 'max_in_flight:[[:space:]]*[0-9]+' "$GATES_YAML" 2>/dev/null | head -1 | awk '{print $2}' || true)"
 MAX_IN_FLIGHT="${MAX_IN_FLIGHT:-3}"
 
 # Plain counters, not an associative array (declare -A needs bash 4+; macOS
@@ -131,7 +139,15 @@ if [ -d "$RD_DIR" ]; then
     if [ "$state" = "accepted" ]; then
       gate_record="$GATE_RECORDS_DIR/${id}-gate.json"
       if [ -f "$gate_record" ]; then
-        gate_ts="$(cz_json_field "$gate_record" timestamp)"
+        # gate_decision.timestamp SPECIFICALLY — the moment the RD was actually
+        # approved. A bare cz_json_field <f> timestamp reads the first
+        # "timestamp" in file order, which is ai_review's (see the note on
+        # cz_json_nested_field in lib/common.sh): that reported the AI-review
+        # time as the delivery time and overstated dwell by the review duration.
+        # Fall back to the record's own top-level timestamp for older gate
+        # records written before gate_decision was nested.
+        gate_ts="$(cz_json_nested_field "$gate_record" gate_decision timestamp)"
+        [ -n "$gate_ts" ] || gate_ts="$(cz_json_field "$gate_record" timestamp)"
         if [ -n "$gate_ts" ]; then state_anchor="$gate_ts"; fi
       fi
     fi

@@ -1,3 +1,10 @@
+---
+kind: RTM
+agent: agentops
+rd: null
+step: 10
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: RTM-PB0X.md
   Purpose: Requirements Traceability Matrix.

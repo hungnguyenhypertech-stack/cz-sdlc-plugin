@@ -1,3 +1,10 @@
+---
+kind: WEEKLY
+agent: agentops
+rd: null
+step: 10
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: WEEKLY-PB0X.md
   Purpose: Weekly status report. One block per week, append-only. Gives

@@ -1,3 +1,10 @@
+---
+kind: CASE-STUDY
+agent: agentops
+rd: null
+step: 10
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: CASE-STUDY.md
   Purpose: End-of-project narrative. Written once, at project close (or

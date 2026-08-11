@@ -1,3 +1,10 @@
+---
+kind: MODULEMAP
+agent: sa
+rd: null
+step: 2
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: MODULEMAP-PB0X.md
   Purpose: Inventory every module in the system and tag it Layer 0 or

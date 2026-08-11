@@ -41,6 +41,39 @@ DELIVERABLES_DIR="$CZ_ROOT/deliverables"
 cz_log() { echo "[cz-harness] $*" >&2; }
 cz_deny() { echo "[cz-harness] DENIED: $*" >&2; exit 1; }
 
+# cz_python: prints the path of a python3 interpreter that actually RUNS, or ""
+# if none is available. Callers must test for empty and degrade gracefully.
+#
+# `command -v python3` is NOT sufficient on Windows: it ships an App Execution
+# Alias stub at .../WindowsApps/python3.exe that exists, is executable, and
+# always fails with "Python was not found; run without arguments to install
+# from the Microsoft Store". Every caller here guarded on `command -v python3`,
+# passed that guard, then silently failed — which is why deliverable HTML
+# rendering, deliverables/index.json, and the audit index all quietly produced
+# nothing on Windows while every hook still reported success.
+#
+# So: probe candidates by actually executing one, and accept `python` (the name
+# a real Windows install uses) as well as `python3`. Result is memoized in
+# CZ_PYTHON for the life of the process.
+cz_python() {
+  if [ -n "${CZ_PYTHON:-}" ]; then
+    printf '%s' "$CZ_PYTHON"
+    return 0
+  fi
+  local c
+  for c in "${CZ_PYTHON_BIN:-}" python3 python py; do
+    [ -n "$c" ] || continue
+    command -v "$c" >/dev/null 2>&1 || continue
+    if "$c" -c 'import sys; sys.exit(0)' >/dev/null 2>&1; then
+      CZ_PYTHON="$(command -v "$c")"
+      export CZ_PYTHON
+      printf '%s' "$CZ_PYTHON"
+      return 0
+    fi
+  done
+  return 0
+}
+
 # cz_now: RFC3339 UTC timestamp
 cz_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
@@ -275,6 +308,23 @@ cz_sole_lock_rd() {
   return 0
 }
 
+# cz_locked_rd_ids: prints one currently-claimed RD id per line (state/locks/
+# *.lock basenames), or nothing if no lock is held. Unlike cz_sole_lock_rd this
+# does not collapse to "" when several claims exist — a caller that has its own
+# candidate RD (e.g. an id parsed out of an incoming write's content) can
+# intersect against this set to disambiguate under bounded/wave concurrency,
+# where sole-lock resolution is unavailable by construction.
+cz_locked_rd_ids() {
+  local f
+  if [ -d "$LOCK_DIR" ]; then
+    for f in "$LOCK_DIR"/*.lock; do
+      [ -f "$f" ] || continue
+      basename "$f" .lock
+    done
+  fi
+  return 0
+}
+
 # cz_lock_agent_for_rd <rd-id>: prints the agent holding <rd-id>'s lock, or
 # "" if it isn't currently locked. Unlike cz_sole_lock_*, this disambiguates
 # correctly even with several RDs claimed concurrently (standard/heavy
@@ -337,4 +387,33 @@ cz_json_field() {
   # config/gates.yaml aborting project-state.sh before this file existed).
   grep -oE "\"$key\"[[:space:]]*:[[:space:]]*(\"[^\"]*\"|[A-Za-z0-9_.]+)" "$file" 2>/dev/null \
     | head -1 | sed -E "s/\"$key\"[[:space:]]*:[[:space:]]*//; s/^\"//; s/\"$//" || true
+}
+
+# cz_json_nested_field <json-file> <parent-key> <child-key>: reads <child-key>
+# from INSIDE the <parent-key> object. cz_json_field above is a flat, file-order
+# `grep | head -1` — pointed at a nested document it returns whichever match
+# appears FIRST in the file, regardless of which object owns it. gate-records/
+# *-gate.json nests a "timestamp" under each of ai_review, security_review and
+# gate_decision, so cz_json_field <f> timestamp silently returned ai_review's —
+# making project-state.sh report the AI-review time as the RD's finished_date
+# and inflating time_in_state_s by the whole review duration. The board and
+# board/build-audit-index.py (which parses the JSON properly, in python) then
+# disagreed about the same gate.
+#
+# Scoped by slicing the text from the parent key to the end of its object: the
+# gate records this reads are flat-one-level (no nested object inside a nested
+# object), so stopping at the first "}" after the parent key is sufficient and
+# stays dependency-free, consistent with every other JSON helper in this file.
+# Prints "" if the parent or child is absent. Always returns 0 — see the note
+# above cz_sole_lock_file about best-effort lookups never failing the caller.
+cz_json_nested_field() {
+  local file="$1" parent="$2" child="$3"
+  [ -f "$file" ] || return 0
+  tr -d '\n' < "$file" 2>/dev/null \
+    | grep -oE "\"$parent\"[[:space:]]*:[[:space:]]*\{[^}]*\}" \
+    | head -1 \
+    | grep -oE "\"$child\"[[:space:]]*:[[:space:]]*(\"[^\"]*\"|[A-Za-z0-9_.]+)" \
+    | head -1 \
+    | sed -E "s/\"$child\"[[:space:]]*:[[:space:]]*//; s/^\"//; s/\"$//" || true
+  return 0
 }

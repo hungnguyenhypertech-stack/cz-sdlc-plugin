@@ -1,3 +1,10 @@
+---
+kind: RISK
+agent: risk-gov
+rd: null
+step: 6
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: RISK-PB0X.md
   Purpose: Risk register for the project. Every risk gets likelihood,

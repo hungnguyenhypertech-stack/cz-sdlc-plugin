@@ -1,3 +1,10 @@
+---
+kind: SPEC
+agent: ba
+rd: null
+step: 1
+created_at: <RFC3339>
+---
 <!--
   TEMPLATE: SPEC-PB0X.md
   Purpose: Coarse (project-level, not RD-level) requirements. Each

@@ -21,7 +21,7 @@ esac
 # resolve to whichever RD's annotation appears first, not the one active now.
 RD_ID="${CZ_ACTIVE_RD:-}"
 [ -n "$RD_ID" ] || RD_ID="$(cz_sole_lock_rd)"
-[ -n "$RD_ID" ] || RD_ID="$(grep -oE 'RD-[A-Za-z0-9]+-[0-9]+\.[0-9]+' "$FILE_PATH" 2>/dev/null | head -1 || true)"
+[ -n "$RD_ID" ] || RD_ID="$(grep -oE 'RD-[A-Za-z0-9]+-[0-9]+\.[0-9]+[a-z]?' "$FILE_PATH" 2>/dev/null | head -1 || true)"
 [ -n "$RD_ID" ] || exit 0   # nothing to check against; guard-red-before-green already denies untagged writes
 
 RD_PATH="$(cz_rd_path "$RD_ID")"
