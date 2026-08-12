@@ -322,6 +322,123 @@
   .agent-card .agent-rd { color: var(--text); }
   .agent-card .agent-meta { color: var(--dim); }
 
+  /* ---------- app shell v2: sidebar nav + main column ---------- */
+  html, body { height: 100%; }
+  body { padding: 0; }
+  .shell { display: flex; min-height: 100vh; align-items: stretch; }
+  .app-sidebar {
+    width: 176px;
+    flex: 0 0 176px;
+    background: var(--panel2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 10px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .app-sidebar-brand {
+    color: var(--text);
+    font-weight: bold;
+    font-size: 12.5px;
+    letter-spacing: 0.03em;
+    padding: 4px 8px 16px;
+  }
+  .app-sidebar-brand span { color: var(--blue); }
+  .app-sidebar .tab-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 0;
+  }
+  .app-sidebar .tab-btn.active { background: var(--panel); border-color: var(--blue); color: var(--text); }
+  .app-sidebar .tab-btn:hover:not(.active) { border-color: var(--border); color: var(--text); }
+  .app-sidebar-spacer { flex: 1; }
+  .app-sidebar-foot { font-size: 10px; color: var(--dim); padding: 8px; line-height: 1.5; }
+  .app-main { flex: 1; min-width: 0; padding: 16px; }
+
+  /* ---------- live board v2: kpi tiles, pipeline stepper, filter bar, subtabs, drawer ---------- */
+  .kpi-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .kpi-tile {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    padding: 8px 14px;
+    min-width: 92px;
+  }
+  .kpi-tile .kpi-num { font-size: 19px; font-weight: bold; color: var(--text); font-variant-numeric: tabular-nums; }
+  .kpi-tile .kpi-lbl { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
+  .kpi-tile.kpi-good .kpi-num { color: var(--green); }
+  .kpi-tile.kpi-warn .kpi-num { color: var(--amber); }
+  .kpi-tile.kpi-risk .kpi-num { color: var(--red); }
+
+  .lb-pipeline {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 14px 18px 10px;
+    margin-bottom: 4px;
+    overflow-x: auto;
+  }
+  .lb-ptrack { display: flex; align-items: flex-start; min-width: 700px; }
+  .lb-pstep { flex: 1; text-align: center; position: relative; padding: 0 4px; }
+  .lb-pstep .lb-pnode {
+    width: 26px; height: 26px; border-radius: 50%; margin: 0 auto 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: bold; border: 2px solid var(--border);
+    background: var(--panel2); color: var(--dim);
+  }
+  .lb-pstep.passed .lb-pnode { background: rgba(76,175,111,0.14); border-color: var(--green); color: var(--green); }
+  .lb-pstep.failed .lb-pnode { background: rgba(224,85,85,0.14); border-color: var(--red); color: var(--red); }
+  .lb-pstep .lb-pline { position: absolute; top: 12px; left: -50%; width: 100%; height: 2px; background: var(--border); z-index: -1; }
+  .lb-pstep:first-child .lb-pline { display: none; }
+  .lb-pstep.passed .lb-pline { background: var(--green); }
+  .lb-pstep .lb-pname { font-size: 11px; font-weight: bold; color: var(--text); }
+  .lb-pstep .lb-partifact { font-size: 10px; color: var(--dim); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .lb-filterbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0 10px; }
+  .lb-filterbar input, .lb-filterbar select {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    font-family: inherit; font-size: 12px; padding: 5px 8px; border-radius: 4px;
+  }
+  .lb-filterbar input { width: 220px; }
+
+  .lb-subtabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .lb-subtab {
+    background: transparent; border: 1px solid transparent; color: var(--dim);
+    font-family: inherit; font-size: 12px; padding: 6px 12px; border-radius: 6px 6px 0 0; cursor: pointer;
+  }
+  .lb-subtab.active { color: var(--text); background: var(--panel); border-color: var(--border); border-bottom-color: var(--panel); }
+  .lb-badge { display: inline-block; margin-left: 5px; font-size: 10px; padding: 0 5px; border-radius: 999px; background: var(--red); color: #fff; vertical-align: 1px; }
+  .lb-subpanel { display: none; }
+  .lb-subpanel.active { display: block; }
+
+  .card, .agent-card { cursor: pointer; }
+  .card:hover, .agent-card:hover { border-color: var(--blue); }
+
+  .lb-drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 50; }
+  .lb-drawer-overlay.open { display: block; }
+  .lb-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 320px;
+    background: var(--panel); border-left: 1px solid var(--border);
+    padding: 16px; overflow-y: auto; transform: translateX(100%);
+    transition: transform 0.18s ease; z-index: 51;
+  }
+  .lb-drawer-overlay.open .lb-drawer { transform: translateX(0); }
+  .lb-drawer-close { float: right; cursor: pointer; color: var(--dim); font-size: 12px; }
+  .lb-drawer-close:hover { color: var(--text); }
+  .lb-drawer h4 { margin: 4px 0 2px; color: var(--text); font-size: 15px; }
+  .lb-drawer .lb-drawer-sub { color: var(--dim); font-size: 11px; margin-bottom: 14px; }
+  .lb-drawer .lb-field { text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; color: var(--dim); margin: 11px 0 3px; }
+  .lb-drawer .lb-val { font-size: 12.5px; color: var(--text); }
+
   /* ---------- RD list table ---------- */
   .rd-table-wrap { overflow-x: auto; margin-bottom: 6px; }
   table.rd-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -496,23 +613,29 @@
 </head>
 <body>
 
-<div class="header">
-  <div class="title-row">
-    <span>CZ-Harness &middot; <strong id="hdr-project">&mdash;</strong> &middot; <span id="hdr-wave"></span> &mdash; profile: <strong id="hdr-profile">&mdash;</strong> &middot; in flight <strong id="hdr-inflight">&mdash;</strong></span>
-    <span id="hdr-time">&mdash;</span>
-  </div>
-  <div class="alerts" id="alerts-row">&mdash;</div>
-  <div class="counts" id="counts-row">&mdash;</div>
-  <div class="cost-line" id="cost-row">&mdash;</div>
-</div>
+<div class="shell">
+  <nav class="app-sidebar">
+    <div class="app-sidebar-brand">CZ-<span>HARNESS</span></div>
+    <button class="tab-btn active" data-tab="workflow">Workflow</button>
+    <button class="tab-btn" data-tab="live">Live board</button>
+    <button class="tab-btn" data-tab="deliverables">Deliverables</button>
+    <button class="tab-btn" data-tab="health">Health Check</button>
+    <button class="tab-btn" data-tab="audit">Audit &amp; Outcomes</button>
+    <div class="app-sidebar-spacer"></div>
+    <div class="app-sidebar-foot" id="hdr-sidebar-project">&mdash;</div>
+  </nav>
 
-<div class="tabbar">
-  <button class="tab-btn active" data-tab="workflow">Workflow</button>
-  <button class="tab-btn" data-tab="live">Live board</button>
-  <button class="tab-btn" data-tab="deliverables">Deliverables</button>
-  <button class="tab-btn" data-tab="health">Health Check</button>
-  <button class="tab-btn" data-tab="audit">Audit &amp; Outcomes</button>
-</div>
+  <div class="app-main">
+
+  <div class="header">
+    <div class="title-row">
+      <span>CZ-Harness &middot; <strong id="hdr-project">&mdash;</strong> &middot; <span id="hdr-wave"></span> &mdash; profile: <strong id="hdr-profile">&mdash;</strong> &middot; in flight <strong id="hdr-inflight">&mdash;</strong></span>
+      <span id="hdr-time">&mdash;</span>
+    </div>
+    <div class="alerts" id="alerts-row">&mdash;</div>
+    <div class="counts" id="counts-row">&mdash;</div>
+    <div class="cost-line" id="cost-row">&mdash;</div>
+  </div>
 
 <!-- ================= WORKFLOW TAB ================= -->
 <div class="tab-panel active" id="tab-workflow">
@@ -587,77 +710,110 @@
 <!-- ================= LIVE BOARD TAB ================= -->
 <div class="tab-panel" id="tab-live">
 
-  <div class="wf-search">
-    <input id="rd-filter" type="text" placeholder="filter RDs by id&hellip;">
-  </div>
+  <div class="kpi-strip" id="lb-kpi-strip"></div>
 
-  <div class="section-label">project workflow (phases 0&ndash;6, 10 &middot; per-RD phases 7&ndash;9 are the board below)</div>
-  <div class="phases" id="phases-row"></div>
+  <div class="section-label">pipeline &middot; phases 0&ndash;6, 10 run once &middot; phases 7&ndash;9 repeat per RD (board below)</div>
+  <div class="lb-pipeline"><div class="lb-ptrack" id="lb-pipeline-track"></div></div>
   <div class="phase-note" id="phase-note"></div>
 
-  <div class="section-label">RDs &middot; full list &amp; current status</div>
-  <div class="rd-table-wrap">
-    <table class="rd-table">
-      <thead>
-        <tr><th>RD</th><th>Module</th><th>State</th><th>Agent</th><th>Time in state</th><th>Summary</th></tr>
-        <tr class="rd-filter-row">
-          <th></th>
-          <th><select id="rd-module-filter"><option value="">all modules</option></select></th>
-          <th><select id="rd-state-filter"><option value="">all states</option></select></th>
-          <th></th>
-          <th></th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="rd-table-body"></tbody>
-    </table>
-  </div>
-  <div class="rd-pager">
-    <button id="rd-prev">&lsaquo; prev</button>
-    <span id="rd-page-info">&mdash;</span>
-    <button id="rd-next">next &rsaquo;</button>
+  <div class="lb-filterbar">
+    <input id="rd-filter" type="text" placeholder="filter RDs by id&hellip;">
+    <select id="rd-module-filter"><option value="">all modules</option></select>
+    <select id="rd-state-filter"><option value="">all states</option></select>
+    <select id="rd-priority-filter">
+      <option value="">all priorities</option>
+      <option value="high">high priority</option>
+      <option value="medium">medium priority</option>
+      <option value="low">low priority</option>
+    </select>
   </div>
 
-  <div class="section-label">agents &middot; what&rsquo;s working on which RD</div>
-  <div class="agents" id="agents-panel"></div>
-
-  <div class="board" id="board-columns">
-    <div class="col"><div class="col-head">ready (<span data-count="ready">0</span>)</div><div class="col-body" data-col="ready"></div></div>
-    <div class="col"><div class="col-head">claimed (<span data-count="claimed">0</span>)</div><div class="col-body" data-col="claimed"></div></div>
-    <div class="col"><div class="col-head">red (<span data-count="red">0</span>)</div><div class="col-body" data-col="red"></div></div>
-    <div class="col"><div class="col-head">green (<span data-count="green">0</span>)</div><div class="col-body" data-col="green"></div></div>
-    <div class="col"><div class="col-head">in review (<span data-count="in_review">0</span>)</div><div class="col-body" data-col="in_review"></div></div>
-    <div class="col"><div class="col-head">accepted (<span data-count="accepted">0</span>)</div><div class="col-body" data-col="accepted"></div></div>
+  <div class="lb-subtabs">
+    <button class="lb-subtab active" data-sub="pipeline">Pipeline board</button>
+    <button class="lb-subtab" data-sub="agents">Agent activity</button>
+    <button class="lb-subtab" data-sub="risks">Risks &amp; blockers<span class="lb-badge" id="lb-risk-badge" style="display:none;">0</span></button>
+    <button class="lb-subtab" data-sub="table">RD list</button>
   </div>
 
-  <div class="strip" id="strip-rows"></div>
+  <div class="lb-subpanel active" data-subpanel="pipeline">
+    <div class="board" id="board-columns">
+      <div class="col"><div class="col-head">ready (<span data-count="ready">0</span>)</div><div class="col-body" data-col="ready"></div></div>
+      <div class="col"><div class="col-head">claimed (<span data-count="claimed">0</span>)</div><div class="col-body" data-col="claimed"></div></div>
+      <div class="col"><div class="col-head">red (<span data-count="red">0</span>)</div><div class="col-body" data-col="red"></div></div>
+      <div class="col"><div class="col-head">green (<span data-count="green">0</span>)</div><div class="col-body" data-col="green"></div></div>
+      <div class="col"><div class="col-head">in review (<span data-count="in_review">0</span>)</div><div class="col-body" data-col="in_review"></div></div>
+      <div class="col"><div class="col-head">accepted (<span data-count="accepted">0</span>)</div><div class="col-body" data-col="accepted"></div></div>
+    </div>
+  </div>
+
+  <div class="lb-subpanel" data-subpanel="agents">
+    <div class="agents" id="agents-panel"></div>
+  </div>
+
+  <div class="lb-subpanel" data-subpanel="risks">
+    <div class="strip" id="strip-rows"></div>
+  </div>
+
+  <div class="lb-subpanel" data-subpanel="table">
+    <div class="rd-table-wrap">
+      <table class="rd-table">
+        <thead>
+          <tr><th>RD</th><th>Module</th><th>State</th><th>Agent</th><th>Time in state</th><th>Summary</th></tr>
+        </thead>
+        <tbody id="rd-table-body"></tbody>
+      </table>
+    </div>
+    <div class="rd-pager">
+      <button id="rd-prev">&lsaquo; prev</button>
+      <span id="rd-page-info">&mdash;</span>
+      <button id="rd-next">next &rsaquo;</button>
+    </div>
+  </div>
+</div>
+
+<div class="lb-drawer-overlay" id="lb-drawer-overlay">
+  <div class="lb-drawer" id="lb-drawer">
+    <span class="lb-drawer-close" id="lb-drawer-close">&#10005; close</span>
+    <div id="lb-drawer-body"></div>
+  </div>
 </div>
 
 <!-- ================= DELIVERABLES TAB ================= -->
 <div class="tab-panel" id="tab-deliverables">
 
-  <div class="wf-search">
+  <div class="kpi-strip" id="dv-kpi-strip"></div>
+
+  <div class="lb-filterbar">
     <input id="dv-filter" type="text" placeholder="filter by RD id, module or summary&hellip;">
   </div>
 
-  <div class="section-label">deliverables by RD &middot; DoR &middot; DEVBOOK &middot; gate reviews &middot; understanding-log</div>
-  <div class="rd-table-wrap">
-    <table class="rd-table">
-      <thead>
-        <tr><th>RD</th><th>Module</th><th>Status</th><th>Priority</th><th>Complexity</th><th>Estimate</th><th>Actual</th><th>Finished</th><th>Summary</th><th>Deliverables</th></tr>
-      </thead>
-      <tbody id="dv-table-body"></tbody>
-    </table>
+  <div class="lb-subtabs">
+    <button class="lb-subtab active" data-sub="dv-byrd">RD deliverables</button>
+    <button class="lb-subtab" data-sub="dv-project">Project-level</button>
   </div>
 
-  <div class="section-label">project-level deliverables &middot; not tied to a single RD</div>
-  <div class="rd-table-wrap">
-    <table class="rd-table">
-      <thead>
-        <tr><th>Kind</th><th>Agent</th><th>Updated</th><th>Link</th></tr>
-      </thead>
-      <tbody id="dv-project-table-body"></tbody>
-    </table>
+  <div class="lb-subpanel active" data-subpanel="dv-byrd">
+    <div class="section-label">deliverables by RD &middot; DoR &middot; DEVBOOK &middot; gate reviews &middot; understanding-log</div>
+    <div class="rd-table-wrap">
+      <table class="rd-table">
+        <thead>
+          <tr><th>RD</th><th>Module</th><th>Status</th><th>Priority</th><th>Complexity</th><th>Estimate</th><th>Actual</th><th>Finished</th><th>Summary</th><th>Deliverables</th></tr>
+        </thead>
+        <tbody id="dv-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="lb-subpanel" data-subpanel="dv-project">
+    <div class="section-label">project-level deliverables &middot; not tied to a single RD</div>
+    <div class="rd-table-wrap">
+      <table class="rd-table">
+        <thead>
+          <tr><th>Kind</th><th>Agent</th><th>Updated</th><th>Link</th></tr>
+        </thead>
+        <tbody id="dv-project-table-body"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="phase-note" id="dv-note"></div>
@@ -688,7 +844,7 @@
   <div class="section-label">7 traceability dimensions &middot; click a card to expand findings</div>
   <div class="hc-grid" id="hc-grid"></div>
 
-  <div class="wf-search">
+  <div class="lb-filterbar">
     <input id="hc-filter" type="text" placeholder="filter next actions by dimension or keyword&hellip;">
   </div>
   <div class="section-label">summary of next actions by owner</div>
@@ -707,33 +863,46 @@
 <!-- ================= AUDIT & OUTCOMES TAB ================= -->
 <div class="tab-panel" id="tab-audit">
 
-  <div class="section-label">outcome leadership &middot; pillar 6 metrics</div>
-  <div class="agents" id="outcome-metrics"></div>
-  <div class="rd-table-wrap" style="margin-bottom:14px;">
-    <table class="rd-table">
-      <thead><tr><th>Rollup artifact</th><th>Status</th></tr></thead>
-      <tbody id="outcome-artifacts-body"></tbody>
-    </table>
+  <div class="kpi-strip" id="outcome-metrics"></div>
+
+  <div class="lb-subtabs">
+    <button class="lb-subtab active" data-sub="au-outcome">Outcome rollups</button>
+    <button class="lb-subtab" data-sub="au-trail">Gate audit trail</button>
   </div>
 
-  <div class="wf-search">
-    <input id="audit-filter" type="text" placeholder="filter audit trail by RD id or file&hellip;">
+  <div class="lb-subpanel active" data-subpanel="au-outcome">
+    <div class="section-label">outcome leadership &middot; pillar 6 metrics</div>
+    <div class="rd-table-wrap">
+      <table class="rd-table">
+        <thead><tr><th>Rollup artifact</th><th>Status</th></tr></thead>
+        <tbody id="outcome-artifacts-body"></tbody>
+      </table>
+    </div>
   </div>
-  <div class="section-label">gate audit trail &middot; DoR + gate decisions, project gates first</div>
-  <div class="rd-table-wrap">
-    <table class="rd-table">
-      <thead>
-        <tr><th>Scope</th><th>ID</th><th>Kind</th><th>AI</th><th>Security</th><th>Decision</th><th>Approver</th><th>Order enforced</th><th>Timestamp</th><th>File</th></tr>
-      </thead>
-      <tbody id="audit-table-body"></tbody>
-    </table>
+
+  <div class="lb-subpanel" data-subpanel="au-trail">
+    <div class="lb-filterbar">
+      <input id="audit-filter" type="text" placeholder="filter audit trail by RD id or file&hellip;">
+    </div>
+    <div class="section-label">gate audit trail &middot; DoR + gate decisions, project gates first</div>
+    <div class="rd-table-wrap">
+      <table class="rd-table">
+        <thead>
+          <tr><th>Scope</th><th>ID</th><th>Kind</th><th>AI</th><th>Security</th><th>Decision</th><th>Approver</th><th>Order enforced</th><th>Timestamp</th><th>File</th></tr>
+        </thead>
+        <tbody id="audit-table-body"></tbody>
+      </table>
+    </div>
+    <div class="phase-note" id="audit-note"></div>
   </div>
-  <div class="phase-note" id="audit-note"></div>
 </div>
 
 <div class="footer" id="footer-note">
   Reads ../state/board.json &middot; self-refresh ~3s &middot; stalls computed here, not written by any hook (plan &sect;7.1) &middot; rebuild via /cz:rebuild-state &middot; workflow tab + agent-spawn highlighting + paginated RD table + RD filter + Deliverables/Audit tabs
 </div>
+
+  </div><!-- /.app-main -->
+</div><!-- /.shell -->
 
 <script>
 const STALL_THRESHOLD_S = 180;      // default; overridden if board.json.concurrency.stall_threshold_s present
@@ -751,6 +920,65 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
   });
 });
+
+/* ---------------- sub-tabs (scoped per tab-panel, so Live board's and
+   Deliverables' sub-tab groups don't clobber each other) ---------------- */
+document.querySelectorAll(".lb-subtab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const scope = btn.closest(".tab-panel");
+    scope.querySelectorAll(".lb-subtab").forEach(b => b.classList.remove("active"));
+    scope.querySelectorAll(".lb-subpanel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    scope.querySelector(`.lb-subpanel[data-subpanel="${btn.dataset.sub}"]`).classList.add("active");
+  });
+});
+
+/* ---------------- live board: detail drawer ---------------- */
+const lbOverlay = document.getElementById("lb-drawer-overlay");
+const lbDrawerBody = document.getElementById("lb-drawer-body");
+function openDrawer(html) {
+  lbDrawerBody.innerHTML = html;
+  lbOverlay.classList.add("open");
+}
+function closeDrawer() { lbOverlay.classList.remove("open"); }
+document.getElementById("lb-drawer-close").addEventListener("click", closeDrawer);
+lbOverlay.addEventListener("click", (e) => { if (e.target === lbOverlay) closeDrawer(); });
+
+function drawerField(label, value) {
+  return `<div class="lb-field">${label}</div><div class="lb-val">${value}</div>`;
+}
+function openRdDrawer(rd, stalledAgents) {
+  const agent = rd.assigned_agent && rd.assigned_agent !== "null" ? escapeHtml(rd.assigned_agent) : "&mdash; unassigned";
+  const stalledNote = rd.assigned_agent && stalledAgents.has(rd.assigned_agent)
+    ? ' <span class="badge" style="color:var(--red);border-color:var(--red);">stalled</span>' : "";
+  openDrawer(
+    `<h4>${escapeHtml(rd.id)}</h4>` +
+    `<div class="lb-drawer-sub"><span class="rd-state rd-state-${rd.state}">${rd.state}</span></div>` +
+    drawerField("Summary", rd.summary && rd.summary !== "null" ? escapeHtml(rd.summary) : "&mdash;") +
+    drawerField("Module", rd.module && rd.module !== "null" ? escapeHtml(rd.module) : "&mdash;") +
+    drawerField("Assigned agent", agent + stalledNote) +
+    drawerField("Time in state", rd.time_in_state_s != null ? fmtAge(rd.time_in_state_s) : "&mdash;") +
+    drawerField("Priority", rd.priority ? escapeHtml(rd.priority) : "&mdash;") +
+    drawerField("Complexity", rd.complexity ? escapeHtml(rd.complexity) : "&mdash;") +
+    drawerField("Leash", rd.leash ? escapeHtml(rd.leash) : "&mdash;") +
+    drawerField("Cost", rd.cost_usd != null ? "$" + rd.cost_usd.toFixed(2) : "&mdash;") +
+    drawerField("Red skipped", rd.red_skipped ? "yes" : "no") +
+    drawerField("Finished", rd.finished_date ? new Date(rd.finished_date).toLocaleDateString() : "&mdash;")
+  );
+}
+function openAgentDrawer(a, stalled, ageS) {
+  const relatedRd = a.rd ? lastRds.find(r => r.id === a.rd) : null;
+  const reviewLine = relatedRd
+    ? (["ai_review","sec_review","human_review"].includes(relatedRd.state) ? "yes &mdash; " + relatedRd.state : "no, RD is " + relatedRd.state)
+    : "&mdash;";
+  openDrawer(
+    `<h4>${escapeHtml(a.agent)}</h4>` +
+    `<div class="lb-drawer-sub">${escapeHtml(a.agent_state || "unknown")}${stalled ? ' &middot; <span style="color:var(--red);">stalled</span>' : ""}</div>` +
+    drawerField("Current RD", a.rd ? escapeHtml(a.rd) : "idle &mdash; no RD assigned") +
+    drawerField("Last heartbeat", fmtAge(ageS) + " ago") +
+    drawerField("Human review required?", reviewLine)
+  );
+}
 
 /* ---------------- workflow diagram data ---------------- */
 function node(step, label, agent, opts) {
@@ -1055,6 +1283,7 @@ function renderCard(rd, stalledAgents) {
     : "";
   if (rd.assigned_agent && stalledAgents.has(rd.assigned_agent)) col.classList.add("red");
   col.innerHTML = `<div class="rd-id">${shortId(rd.id)}</div>${agentInfo}<div>${cost}${timeInState}${leash}${redSkipped}</div>`;
+  col.addEventListener("click", () => openRdDrawer(rd, stalledAgents));
   return col;
 }
 
@@ -1064,7 +1293,9 @@ let rdPage = 0;
 let rdFilterQuery = "";
 let rdModuleFilter = "";
 let rdStateFilter = "";
+let rdPriorityFilter = "";
 let lastRds = [];
+let lastStalledAgents = new Set();
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1091,7 +1322,8 @@ function renderRdTable(rds) {
   const filtered = rds.filter(r =>
     (!rdFilterQuery || r.id.toLowerCase().includes(rdFilterQuery)) &&
     (!rdModuleFilter || r.module === rdModuleFilter) &&
-    (!rdStateFilter || r.state === rdStateFilter)
+    (!rdStateFilter || r.state === rdStateFilter) &&
+    (!rdPriorityFilter || r.priority === rdPriorityFilter)
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / RD_PAGE_SIZE));
   if (rdPage >= totalPages) rdPage = totalPages - 1;
@@ -1103,6 +1335,7 @@ function renderRdTable(rds) {
   tbody.innerHTML = "";
   pageItems.forEach(rd => {
     const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
     const module = rd.module && rd.module !== "null" ? escapeHtml(rd.module) : "&mdash;";
     const agent = rd.assigned_agent && rd.assigned_agent !== "null" ? escapeHtml(rd.assigned_agent) : "&mdash;";
     const time = rd.time_in_state_s != null ? fmtAge(rd.time_in_state_s) : "&mdash;";
@@ -1114,6 +1347,7 @@ function renderRdTable(rds) {
       `<td>${agent}</td>` +
       `<td>${time}</td>` +
       `<td class="rd-summary-cell">${summary}</td>`;
+    tr.addEventListener("click", () => openRdDrawer(rd, lastStalledAgents));
     tbody.appendChild(tr);
   });
   if (!pageItems.length) {
@@ -1153,6 +1387,12 @@ document.getElementById("rd-module-filter").addEventListener("change", (e) => {
 
 document.getElementById("rd-state-filter").addEventListener("change", (e) => {
   rdStateFilter = e.target.value;
+  rdPage = 0;
+  renderRdTable(lastRds);
+});
+
+document.getElementById("rd-priority-filter").addEventListener("change", (e) => {
+  rdPriorityFilter = e.target.value;
   rdPage = 0;
   renderRdTable(lastRds);
 });
@@ -1305,6 +1545,17 @@ function renderDeliverables(rds, dvRows, auditRows) {
 
   document.getElementById("dv-note").textContent =
     `${dvRows.length} deliverable file(s) across ${byRd.size} RD(s) · reads ${DELIVERABLES_URL}, rebuilt automatically on every deliverable write.`;
+
+  const noDvCount = rds.filter(rd => !byRd.has(rd.id)).length;
+  const dvTiles = [
+    { num: dvRows.length, lbl: "deliverable files" },
+    { num: byRd.size, lbl: "RDs with deliverables", cls: "kpi-good" },
+    { num: noDvCount, lbl: "RDs with none yet", cls: (noDvCount ? "kpi-warn" : "") },
+    { num: projectRows.length, lbl: "project-level files" },
+  ];
+  document.getElementById("dv-kpi-strip").innerHTML = dvTiles.map(t =>
+    `<div class="kpi-tile ${t.cls || ""}"><div class="kpi-num">${t.num}</div><div class="kpi-lbl">${t.lbl}</div></div>`
+  ).join("");
 }
 
 document.getElementById("dv-filter").addEventListener("input", (e) => {
@@ -1319,10 +1570,10 @@ const PCT_FMT = v => v == null ? "&mdash;" : Math.round(v * 100) + "%";
 
 function metricCard(label, value, sub) {
   const card = document.createElement("div");
-  card.className = "agent-card";
-  card.innerHTML = `<div class="agent-name">${label}</div>` +
-    `<div class="agent-rd" style="font-size:16px;">${value}</div>` +
-    (sub ? `<div class="agent-meta">${sub}</div>` : "");
+  card.className = "kpi-tile";
+  card.innerHTML = `<div class="kpi-num">${value}</div>` +
+    `<div class="kpi-lbl">${label}</div>` +
+    (sub ? `<div class="agent-meta" style="margin-top:2px;">${sub}</div>` : "");
   return card;
 }
 
@@ -1418,6 +1669,7 @@ async function refresh() {
     staleAgeByAgent[a.agent] = ageS;
     if (a.agent_state === "executing" && ageS > stallThreshold) stalledAgents.add(a.agent);
   });
+  lastStalledAgents = stalledAgents;
 
   const agentsPanel = document.getElementById("agents-panel");
   agentsPanel.innerHTML = "";
@@ -1433,11 +1685,14 @@ async function refresh() {
     card.innerHTML =
       `<div class="agent-name">${a.agent}${stalledBadge}</div>${rdLine}` +
       `<div class="agent-meta">${a.agent_state || "unknown"} &middot; last seen ${fmtAge(staleAgeByAgent[a.agent])} ago</div>`;
+    card.addEventListener("click", () => openAgentDrawer(a, stalled, staleAgeByAgent[a.agent]));
     agentsPanel.appendChild(card);
   });
   if (!agents.length) agentsPanel.innerHTML = '<div class="empty">no active agents</div>';
 
   document.getElementById("hdr-project").textContent = data.project || "—";
+  document.getElementById("hdr-sidebar-project").textContent =
+    (data.project || "—") + (data.profile ? " · " + data.profile : "");
   const hcNote = document.getElementById("hc-note");
   if (hcNote) {
     const hcProject = data.project || "PROJECT";
@@ -1451,23 +1706,36 @@ async function refresh() {
   document.getElementById("hdr-inflight").textContent = curInFlight + "/" + maxInFlight;
   document.getElementById("hdr-time").textContent = new Date(data.updated_at || Date.now()).toLocaleTimeString();
 
-  const phasesRow = document.getElementById("phases-row");
-  phasesRow.innerHTML = "";
+  const pipelineTrack = document.getElementById("lb-pipeline-track");
+  pipelineTrack.innerHTML = "";
   const phases = data.phases || [];
-  phases.forEach((p, i) => {
-    const chip = document.createElement("span");
-    chip.className = "phase-chip " + (p.status || "not_started");
-    chip.title = p.artifact ? p.artifact : "no artifact yet";
-    chip.innerHTML = `<span class="step">${p.step}</span>${p.name}`;
-    phasesRow.appendChild(chip);
-    if (i < phases.length - 1) {
-      const arrowEl = document.createElement("span");
-      arrowEl.className = "arrow";
-      arrowEl.textContent = "→";
-      phasesRow.appendChild(arrowEl);
-    }
+  phases.forEach(p => {
+    const step = document.createElement("div");
+    step.className = "lb-pstep " + (p.status || "not_started");
+    step.title = p.artifact ? p.artifact : "no artifact yet";
+    step.innerHTML =
+      `<div class="lb-pline"></div>` +
+      `<div class="lb-pnode">${p.status === "passed" ? "&#10003;" : p.status === "failed" ? "&#10007;" : p.step}</div>` +
+      `<div class="lb-pname">${p.name}</div>` +
+      `<div class="lb-partifact">${p.artifact ? "&#10003; has artifact" : "&mdash;"}</div>`;
+    pipelineTrack.appendChild(step);
   });
-  if (!phases.length) phasesRow.innerHTML = '<div class="empty">no phase data — run /cz:rebuild-state</div>';
+  if (!phases.length) pipelineTrack.innerHTML = '<div class="empty">no phase data — run /cz:rebuild-state</div>';
+
+  const kpiStrip = document.getElementById("lb-kpi-strip");
+  const kc = data.counts || {};
+  const kpiTiles = [
+    { num: kc.total ?? 0, lbl: "total RDs" },
+    { num: kc.accepted ?? 0, lbl: "accepted", cls: "kpi-good" },
+    { num: kc.in_flight ?? 0, lbl: "in flight" },
+    { num: kc.in_review ?? 0, lbl: "in review" },
+    { num: kc.blocked_dep ?? 0, lbl: "blocked", cls: (kc.blocked_dep ? "kpi-risk" : "") },
+    { num: kc.hard_stop ?? 0, lbl: "hard-stop", cls: (kc.hard_stop ? "kpi-risk" : "") },
+    { num: kc.draft ?? 0, lbl: "draft", cls: "kpi-warn" },
+  ];
+  kpiStrip.innerHTML = kpiTiles.map(t =>
+    `<div class="kpi-tile ${t.cls || ""}"><div class="kpi-num">${t.num}</div><div class="kpi-lbl">${t.lbl}</div></div>`
+  ).join("");
 
   lastRds = data.rds || [];
   renderRdTable(lastRds);
@@ -1570,6 +1838,12 @@ async function refresh() {
   if (!strip.children.length) {
     strip.innerHTML = '<div class="strip-row" style="color:#7c8b9c;">no draft / hard-stopped / stale / blocked-dep / withdrawn RDs</div>';
   }
+
+  const riskCount = hardStops.length +
+    (data.rds || []).filter(r => ["stale", "blocked_dep"].includes(r.state)).length;
+  const riskBadge = document.getElementById("lb-risk-badge");
+  riskBadge.textContent = riskCount;
+  riskBadge.style.display = riskCount ? "inline-block" : "none";
 
   document.getElementById("footer-note").textContent =
     `Reads ${BOARD_URL} · self-refresh ~3s · stalls computed here (threshold ${stallThreshold}s), not written by any hook · rebuild via /cz:rebuild-state · v3: workflow tab + agent-spawn highlighting + RD filter + Deliverables/Audit tabs`;
