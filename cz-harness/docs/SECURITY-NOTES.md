@@ -1,5 +1,15 @@
 # Security Notes
 
+**NOT APPLICABLE as of 1.0.26.** OmniRoute support was removed from this plugin (see
+`.claude-plugin/plugin.json` notes) — `config/model-routing.yaml` is deleted, the
+`model-gateway`/`adapter` concept described below was never wired past `adapter: direct`, and
+model selection per role is now just the static `model:` field in each `agents/*.md`. Everything
+below is kept as historical record of the security posture that would have been required *if*
+OmniRoute wiring had gone ahead; none of it applies to the current plugin and none of these
+caveats need to be re-checked before use.
+
+---
+
 This document exists because two of these issues (the OmniRoute disable-list and the ToS
 risk) are the kind of thing that fails an FPT security review on sight if not handled before
 ship, not after. Read this before configuring the model-gateway adapter or presenting any

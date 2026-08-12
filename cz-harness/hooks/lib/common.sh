@@ -123,6 +123,24 @@ cz_rd_field() {
   fi
 }
 
+# Effective profile for a given RD file: the RD's own `profile:` field
+# (rd-template.yaml, schemas/rd.schema.json — an RD-level downgrade of
+# ceremony, added 1.0.26) if present, else the project's config/gates.yaml
+# `profile:` (anchored ^profile:, first match only — same style as
+# project-state.sh's PROFILE extraction). Callers that only ever cared about
+# the project-level profile before 1.0.26 should switch to this instead of
+# reading GATES_YAML directly, so an RD-level override actually takes effect.
+cz_effective_profile() {
+  local file="$1" rd_profile project_profile
+  rd_profile="$(cz_rd_field "$file" profile 2>/dev/null | tr -d ' ')"
+  if [ -n "$rd_profile" ]; then
+    echo "$rd_profile"
+    return 0
+  fi
+  project_profile="$(grep -m1 -oE '^profile:[[:space:]]*[a-z]+' "$GATES_YAML" 2>/dev/null | sed -E 's/^profile:[[:space:]]*//')"
+  echo "${project_profile:-standard}"
+}
+
 # cz_rd_tests_list <rd-file-path>: prints one TC id per line from the RD's
 # `tests:` field. Supports both the multi-line indented-list form the shipped
 # rd-template.yaml actually uses:

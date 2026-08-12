@@ -26,7 +26,15 @@ RD green → [AI review] → [security review, conditional] → [human approval]
 
 An artifact never reaches a human before an AI reviewer has had a pass — that keeps human
 review time on judgment instead of typos, and is what makes the Light profile safe enough to
-be worth having. AI review and, where triggered, security review **always** run and are always
+be worth having.
+
+**Which profile applies to this RD**: since 1.0.26, check the RD's own `profile:` field
+(`rd-template.yaml`, `schemas/rd.schema.json`) first — it overrides the module/project profile
+downward for that one RD (set by `ba`/`planner` at `/cz:rd` time per the complexity heuristic in
+`skills/rd-decomposition/SKILL.md`). Fall back to the module/project `config/gates.yaml` profile
+only when the RD has no `profile:` field of its own. `hooks/lib/common.sh`'s
+`cz_effective_profile` implements this same precedence for the mechanically-enforced hooks —
+match it rather than reading `config/gates.yaml`'s `profile:` in isolation. AI review and, where triggered, security review **always** run and are always
 recorded in `gate-records/*.json`, regardless of any `human_gates` setting; `human_gates` only
 controls the approval step downstream of them.
 

@@ -14,6 +14,9 @@
     "wbs": { "type": "string", "pattern": "^WBS-[A-Za-z0-9]+-[0-9]+\\.[0-9]+\\.[0-9]+$" },
     "module": { "type": "string" },
     "layer": { "type": "integer", "enum": [0, 1] },
+    "profile": { "type": "string", "enum": ["light", "standard", "heavy"], "description": "RD-level override of the module/project profile (config/gates.yaml). Optional — absent means \"inherit the effective module/project profile\". May only lower ceremony relative to that inherited value, never raise it (one_way_ratchet in gates.yaml). Set by ba/planner at /cz:rd drafting time per the complexity heuristic in skills/rd-decomposition/SKILL.md." },
+    "split_from": { "type": ["string", "null"], "pattern": "^RD-[A-Za-z0-9]+-[0-9]+\\.[0-9]+[a-z]?$", "description": "If this RD was produced by a split, the parent RD id it was split from. Null/absent for RDs that are not split products." },
+    "split_depth": { "type": "integer", "minimum": 0, "description": "0 for an RD not produced by a split; parent's split_depth + 1 for a split product. Used by skills/rd-decomposition/SKILL.md's fan-out/depth cap. Absent is treated as 0." },
     "statement": { "type": "string", "minLength": 1 },
     "summary": { "type": "string", "maxLength": 120, "description": "One-line, human-scannable gloss of the statement — shown as the board's RD-table Summary column. Optional but expected on every RD from /cz:rd onward; not covered by content_hash." },
     "ac": {
@@ -79,7 +82,8 @@
       "additionalProperties": false,
       "properties": {
         "red_log": { "type": ["string", "null"] },
-        "green_log": { "type": ["string", "null"] }
+        "green_log": { "type": ["string", "null"] },
+        "smoke_log": { "type": ["string", "null"], "description": "Path to evidence/RD-<id>/smoke-vN.log written by cz-build.md's smoke-check step, when config/gates.yaml defines smoke_check.command. Null/absent when no smoke_check is configured for the project." }
       }
     },
     "gates": {

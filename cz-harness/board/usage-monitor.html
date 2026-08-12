@@ -2191,6 +2191,12 @@ var SECURITY_GROUP_LABELS = {
 };
 var SECURITY_GROUPS = ["g1","g2","g3","g4","g5","g6"];
 
+// Note (1.0.26): the OmniRoute entries below are this scanner's own unsafe-tool
+// detector (flagging OmniRoute usage in a session as a ToS-risk pattern, same
+// category as 9router/OpenClaw/CLIProxyAPI) — unrelated to, and not affected by,
+// cz-harness's own OmniRoute model-gateway wiring being removed this version (see
+// docs/SECURITY-NOTES.md). Left in place: it still detects the same real risk
+// regardless of whether cz-harness itself ever integrates with OmniRoute.
 var UNSAFE_TOOL_PATTERNS = [
   { re:/\b9router\b/i, label:"9router reference" },
   { re:/\bomniroute\b/i, label:"OmniRoute reference" },

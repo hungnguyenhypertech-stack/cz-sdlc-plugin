@@ -2,7 +2,7 @@
 
 **An AI-native delivery Harness for FPT project managers.** RD-driven, fully traceable, real-time observable.
 
-Built from `CZ-HARNESS-PLAN-v0.4.md` (2026-07-27). This is the Phase 0-5 scaffold per the plan's own build-phase table (§12): contracts, agents, commands, hooks, gate engine config, live board, and docs are all present; OmniRoute wiring (Phase 6) and a dogfood run against a real PB-0X brief (Phase 7) are not.
+Built from `CZ-HARNESS-PLAN-v0.4.md` (2026-07-27). This is the Phase 0-5 scaffold per the plan's own build-phase table (§12): contracts, agents, commands, hooks, gate engine config, live board, and docs are all present; a dogfood run against a real PB-0X brief (Phase 7) is not. (Phase 6, OmniRoute wiring — not applicable, OmniRoute support was removed in 1.0.26; see `docs/SECURITY-NOTES.md`.)
 
 ## What's here
 
@@ -13,7 +13,7 @@ Built from `CZ-HARNESS-PLAN-v0.4.md` (2026-07-27). This is the Phase 0-5 scaffol
 | `commands/` | 19 slash commands — 11 map to the delivery pipeline's steps 0-10, 8 are cross-cutting (`/cz:rd`, `/cz:status`, `/cz:board`, `/cz:audit`, `/cz:explain`, `/cz:rebuild-state`, `/cz:viva`, `/cz:init`) |
 | `hooks/` | 9 enforcing hooks — the load-bearing part. `guard-red-before-green.sh` and `guard-rd-freeze.sh` make strict SDD non-optional; `guard-state-transition.sh` is the RD state machine's sole authority; `guard-role-boundaries.sh` enforces the anti-collusion invariants; `guard-claim-lock.sh` gives one-RD-one-lock with lazy TTL reclaim; `detect-hazard.sh` escalates on the actual diff, not the declared module; `guard-secrets.sh` is the deny-list; `emit-telemetry.sh` + `project-state.sh` are the event-sourcing pipeline behind the board |
 | `skills/` | 7 packaged skills (`rd-decomposition`, `sdd-loop`, `gate-engine`, `traceability`, `telemetry`, `devbook`, `viva-prep`), each a self-sufficient `SKILL.md` repackaging the same mechanics as the corresponding commands/docs for direct invocation by name |
-| `config/` | `gates.yaml` (profile/concurrency/hazard config), `delegation-map.yaml`, `model-routing.yaml`, `hazard-paths.yaml`, `id-scheme.yaml` |
+| `config/` | `gates.yaml` (profile/concurrency/hazard/smoke-check config), `delegation-map.yaml`, `hazard-paths.yaml`, `id-scheme.yaml` (`model-routing.yaml` removed in 1.0.26 — see notes; model per role is set directly in each `agents/*.md` frontmatter) |
 | `schemas/` | JSON Schemas for the RD record, test case, telemetry event, gate record, and board state — all validated against representative instances (see Verification below) |
 | `templates/` | The 12 playbook artifacts + `UNDERSTANDING-LOG.md` + `CASE-STUDY.md` + RD/TC/gate-record/Dev-Book-entry templates, using the plan's own nightly-refresh / source-reconciliation worked example throughout. `templates/deliverables/` holds the shared `style.css` + `page.html.tmpl` every rendered deliverable reuses |
 | `board/board.html` | Single-file, self-refreshing (~3s) live board — Workflow, Live board, Deliverables (RD priority/complexity/estimate-vs-actual/finished-date, plus deliverable/gate-review chips per RD), and Audit & Outcomes tabs. Reads `../state/board.json`, `../deliverables/index.json`, `../gate-records/index.json`. Stalls are computed client-side from heartbeat age — no hook ever writes a stall event |
@@ -42,6 +42,6 @@ The red/green hooks target **pytest** (`hooks/lib/test-runner-adapter.sh`), per 
 ## Not yet done (honest gap, matches plan §13/§14)
 
 - Not wired into a real Claude Code runtime or exercised against a live agent session — hooks are unit-checked for syntax/schema, not integration-tested against actual tool-call interception (plan's own Phase-3 risk: "Claude Code hooks may not intercept every write path").
-- OmniRoute adapter left at `adapter: direct` (Phase 6, deferred by design).
+- OmniRoute adapter — not applicable, removed in 1.0.26 (was `adapter: direct`, never wired past that; see `docs/SECURITY-NOTES.md`).
 - No dogfood run (Phase 7) — this build has never produced a real Customer Zero.
 - Plan §14 open questions 3-6 (FPT RD-template alignment, project code convention, language, repo home) remain open; `PB0X`/`PB04` placeholders are used throughout and are a project-wide find/replace away from a real project.

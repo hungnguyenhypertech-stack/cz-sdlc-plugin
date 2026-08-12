@@ -24,8 +24,11 @@ plan §2/§8.4 so an entry can be authored or evaluated to spec.
 
 1. **RD ID** — the RD this entry documents; must exist in the registry and be referenced from
    the project Dev Book.
-2. **Dev Book profile in effect** — Light | Standard | Heavy. Standard/Heavy require ≥1
-   human-authored correction below; Heavy additionally requires Root Cause to be filled in.
+2. **Dev Book profile in effect** — Light | Standard | Heavy. Since 1.0.26 this is the RD's own
+   `profile:` field if set (an RD-level downgrade — see `skills/rd-decomposition/SKILL.md`'s
+   complexity heuristic and `hooks/lib/common.sh`'s `cz_effective_profile`), else the
+   module/project profile. Standard/Heavy require ≥1 human-authored correction below; Heavy
+   additionally requires Root Cause to be filled in.
 3. **What AI Proposed** — concrete description of what the AI generated/implemented before any
    human correction. Reference the actual approach/code pattern, not "implemented the
    feature." Example: *"AI implemented the point-redemption deduction as two separate database

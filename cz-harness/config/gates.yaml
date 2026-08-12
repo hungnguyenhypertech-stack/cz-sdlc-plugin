@@ -18,6 +18,20 @@ module_overrides:               # per-module escalation/de-escalation of the bas
   # module names from your project's MODULEMAP once one exists — do not treat the
   # commented-out state itself as a bug.
 
+smoke_check:                    # OPTIONAL (1.0.26). Absent = no smoke check configured, and
+                                 # cz-build.md's step 9a is a no-op — this does not retroactively
+                                 # require every project to define one.
+  # command: "node --test tests/*.test.js"
+  #   The project's own definition of "does the whole thing actually run" — distinct from a
+  #   single RD's unit tests (which only prove that RD's AC). Runs once per RD in cz-build.md's
+  #   loop, between step 9 (coverage) and step 10 (DEVBOOK), output captured to
+  #   evidence/RD-<rd-id>/smoke-vN.log. hooks/guard-state-transition.sh's green->ai_review case
+  #   requires this log to exist before gate 1 when this key is set and the RD's effective
+  #   profile (hooks/lib/common.sh's cz_effective_profile) is standard/heavy; under profile:light
+  #   a missing log is a warning, not a block — same leniency precedent as the red-skip rule.
+  #   Examples: "node --test tests/*.test.js" (this template's own convention), "npm run build",
+  #   "npm test", or any command that exits non-zero on failure.
+
 concurrency:
   mode: bounded                 # serial | bounded | wave
   max_in_flight: 3              # bounded mode; also the hard ceiling in wave mode
@@ -82,6 +96,7 @@ human_gates:                     # per-phase toggle: does this phase's Gate step
 #   Traceability            : light=RTM optional, orphans warn | standard=RTM required, orphans block report | heavy=bidirectional + zero stale TCs
 #   Delegation ceiling      : light=L3/leash A | standard=L3/leash A | heavy=L4/leash A+, per-action approval
 #   Dev Book entry          : light=per RD | standard=per RD + >=1 correction | heavy=per RD + correction + root cause
+#   Smoke check (1.0.26)    : only applies when smoke_check.command above is set. light=warns if missing, does not block | standard=required, blocks green->ai_review | heavy=required, blocks green->ai_review
 # ---------------------------------------------------------------------------
 
 one_way_ratchet:

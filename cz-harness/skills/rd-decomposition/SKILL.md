@@ -42,6 +42,31 @@ RD must be split before it can be accepted into the registry.
    *statement* (not the AC) are a red flag. Detail belongs in the acceptance criteria, not
    stacked into the statement as a second requirement.
 
+## Complexity Heuristic → RD-Level Profile Override
+
+At the same drafting moment the six-point test runs, `ba`/`planner` also decide whether this RD
+qualifies for a `profile:` override (`rd-template.yaml`'s `profile:` field) — a downgrade of
+*this RD's own* ceremony depth below whatever the module/project profile would otherwise impose.
+This is not a new gate or a new document type; it reuses the existing `light|standard|heavy`
+profile mechanism (`docs/LIGHTWEIGHT-MODE.md`, `config/gates.yaml`'s gate-profile matrix), just
+applied at RD grain instead of only at project/module grain.
+
+An RD is **light-eligible** when all of:
+
+- `layer: 1` (surface, not foundation)
+- `estimate.expected_h <= 1.5` (well inside the six-point test's own `<= 4` ceiling — this is a
+  tighter bar, not the same one)
+- Exactly 1 AC drafted
+
+When eligible, set `profile: light` on the RD. This can only ever *lower* ceremony relative to
+the module/project profile — never raise it (an RD under a `light` module cannot declare
+`profile: heavy` to get more scrutiny than the project asked for is fine, since that direction
+is not restricted, but the reverse — a `standard`/`heavy` module RD declaring `profile: light` to
+dodge review — is exactly what this heuristic exists to make principled rather than arbitrary; a
+hazard RD is never eligible regardless of these signals, `hazard: true` always wins). Omit the
+field entirely when not eligible; absence means "inherit the module/project profile" and is the
+common case.
+
 ## Automatic Split Triggers
 
 Propose a split (typically as `ba`/`sa` during drafting, or `test-designer`/`dev` discovering
@@ -55,6 +80,33 @@ it mid-loop) whenever any of the following fires:
 - An agent exhausts its context window mid-loop while working the RD — treated as empirical
   evidence the RD was too large, regardless of what the estimate said going in (a
   stall/thrash signal visible in `telemetry/events.jsonl`).
+
+## Fan-Out and Depth Cap
+
+Splitting has no natural stopping point on its own — a WBS leaf that keeps triggering splits can
+fragment indefinitely, which trades "RD too big" for "ceremony overhead now outweighs the code."
+Each split product records `split_from` (the parent RD id) and `split_depth` (parent's
+`split_depth + 1`, starting at 0 for a non-split RD) in its `rd-template.yaml` fields.
+
+For any WBS leaf whose *originating* RD was `profile: light`-eligible under the heuristic above
+(i.e. the underlying work was assessed as small to begin with):
+
+- **Fan-out cap: 4 siblings per split.** A single split proposal may not produce more than 4
+  child RDs.
+- **Depth cap: 2.** A split product (`split_depth: 1`) may itself be split once more
+  (`split_depth: 2`), but a `split_depth: 2` RD triggering yet another split does not auto-propose
+  a further split.
+
+WBS leaves that were *not* light-eligible (genuinely larger/more complex scope) are not subject to
+this cap — the existing uncapped six-point-test behavior applies, but each additional split beyond
+depth 2 must state in its split proposal's rationale why the extra split was necessary, so a human
+reviewing `human_gates.rd_commit` can see the fragmentation was deliberate, not accumulated.
+
+**When a cap would be exceeded:** do not auto-propose another split. Instead, flag it as a
+module/WBS-boundary problem for human re-scoping — the signal at that point is that decomposition
+alone isn't fixing the sizing problem, the WBS leaf or module boundary itself is miscut. Write
+this as a note in the pending split proposal rather than silently forcing a 5th sibling or a 3rd
+level of depth.
 
 **Splitting is proposed by agents, committed only by a human.** An agent that detects a split
 trigger writes a split proposal (new RD ids, redistributed AC, updated estimates) into the

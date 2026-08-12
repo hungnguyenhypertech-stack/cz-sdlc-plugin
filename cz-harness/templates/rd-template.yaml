@@ -40,6 +40,20 @@ module: reconciliation        # Must reference exactly one module in MODULEMAP-P
 layer: 0                      # 0 = foundation, 1 = surface (from MODULEMAP-PB0X.md).
                               # Drives dependency ordering and the Light red-skip rule.
 
+profile: light                # OPTIONAL. light | standard | heavy — overrides the module/project
+                              # profile for THIS RD only, and only downward (never raises ceremony
+                              # above the inherited profile — one_way_ratchet in gates.yaml). Set
+                              # by ba/planner at /cz:rd time per the complexity heuristic in
+                              # skills/rd-decomposition/SKILL.md (roughly: layer:1, expected_h <=
+                              # 1.5, 1 AC). Omit entirely to just inherit the module/project profile.
+
+split_from: null              # OPTIONAL. RD id this RD was split from, if any (null for RDs not
+                              # produced by a split). Paired with split_depth below.
+split_depth: 0                # OPTIONAL, defaults to 0. Parent's split_depth + 1 for a split
+                              # product. skills/rd-decomposition/SKILL.md caps this at 2 and caps
+                              # fan-out at 4 siblings per split for RDs under a WBS leaf the
+                              # complexity heuristic classified simple.
+
 # --- The requirement itself -----------------------------------------------------
 summary: "Retain and flag last-good branch figures when a source fails"
                               # One-line (<=120 char) human-scannable gloss of
@@ -145,6 +159,12 @@ tests:                         # TC ids derived from this RD's AC (see tc-templa
 evidence:
   red_log: evidence/RD-PB0X-012.03/tests-red-v3.log     # system-managed
   green_log: null                                        # system-managed
+  smoke_log: null                                        # system-managed. Only ever set when
+                                                          # config/gates.yaml defines
+                                                          # smoke_check.command (see cz-build.md
+                                                          # step 9a). null otherwise — this is not
+                                                          # a required field for projects that
+                                                          # haven't configured a smoke check.
 
 # --- Gates ---------------------------------------------------------------------
 gates: []                      # GATE-RD-<id>-<nn> ids, populated as gates fire —

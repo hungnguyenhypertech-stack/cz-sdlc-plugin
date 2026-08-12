@@ -49,8 +49,12 @@ is_allowed() {
     "claimed->red"|"claimed->ready") return 0 ;;
     "claimed->green")
       # Only valid under profile: light AND layer: 1 AND red_skipped:true recorded.
+      # profile is the RD's OWN effective profile (cz_effective_profile: RD-level
+      # override if set, else project gates.yaml) — an RD-level profile:light
+      # override is exactly what should unlock this skip, not just a
+      # project-wide light profile.
       local profile layer red_skipped
-      profile="$(grep -m1 -oE '^profile:[[:space:]]*[a-z]+' "$GATES_YAML" 2>/dev/null | sed -E 's/^profile:[[:space:]]*//')"
+      profile="$(cz_effective_profile "$FILE_PATH")"
       layer="$(cz_rd_field "$FILE_PATH" layer 2>/dev/null | tr -d ' ')"
       red_skipped="$(cz_rd_field "$FILE_PATH" red_skipped 2>/dev/null | tr -d ' ')"
       [ "$profile" = "light" ] && [ "$layer" = "1" ] && [ "$red_skipped" = "true" ]
@@ -77,6 +81,33 @@ is_allowed() {
       coverage_file="$DELIVERABLES_DIR/coverage/$rd_id.md"
       if [ ! -f "$coverage_file" ]; then
         cz_deny "green->ai_review refused for $rd_id: deliverables/coverage/$rd_id.md does not exist yet. Step 9 (test-designer's post-implementation coverage re-verification) must write this deliverable before gate 1 can begin. See agents/test-designer.md and docs/TRACEABILITY.md."
+      fi
+
+      # Smoke check (1.0.26): if the project has opted in to config/gates.yaml's
+      # smoke_check.command (its "does the whole thing actually run" check, not
+      # just this RD's unit tests), cz-build.md step 9a must have produced
+      # evidence/RD-<id>/smoke-*.log before gate 1 begins — same mechanical
+      # pattern as the coverage file above. Absent smoke_check.command entirely
+      # = project hasn't defined one = no-op, do not block. Under profile:light
+      # for this RD, missing evidence is a warning on stderr, not a block —
+      # same light-profile leniency precedent as the red-skip case above.
+      local smoke_cmd smoke_glob smoke_profile
+      smoke_cmd="$(awk '
+        /^smoke_check:/ { inblock=1; next }
+        inblock && /^[^ \t]/ { inblock=0 }
+        inblock && /^[ \t]+command:/ { v=$0; sub(/^[ \t]+command:[ \t]*/, "", v); print v; exit }
+      ' "$GATES_YAML" 2>/dev/null || true)"
+      if [ -n "$smoke_cmd" ]; then
+        smoke_glob="$EVIDENCE_DIR/RD-$rd_id/smoke-"*.log
+        # shellcheck disable=SC2144
+        if [ ! -f $smoke_glob ] 2>/dev/null; then
+          smoke_profile="$(cz_effective_profile "$FILE_PATH")"
+          if [ "$smoke_profile" = "light" ]; then
+            echo "[cz-harness] WARN: $rd_id has no evidence/RD-$rd_id/smoke-*.log yet (smoke_check.command is configured); allowed to proceed under profile:light, but should still be run. See commands/cz-build.md step 9a." >&2
+          else
+            cz_deny "green->ai_review refused for $rd_id: config/gates.yaml defines smoke_check.command but no evidence/RD-$rd_id/smoke-*.log exists. cz-build.md step 9a must run the smoke check before gate 1 can begin under profile:$smoke_profile."
+          fi
+        fi
       fi
       return 0
       ;;
