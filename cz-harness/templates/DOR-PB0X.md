@@ -21,6 +21,19 @@ created_at: <RFC3339>
 
 ---
 
+## Length by profile (1.0.26)
+
+This RD's effective profile (`hooks/lib/common.sh`'s `cz_effective_profile` — the RD's own
+`profile:` field if set, else module/project profile) governs how much prose each row below
+gets, not just whether the checklist runs:
+
+- **`light`**: one-line verdict per rule (`PASS — <5-10 word reason>`). Spend a full paragraph
+  only on a rule that FAILS, or a PASS that's genuinely non-obvious and would look unjustified
+  without it. A light RD's whole DOR should typically fit in well under half this template's
+  worked-example length.
+- **`standard`/`heavy`**: the fuller rule-by-rule narrative form is expected (see a real example
+  under a passing project's `deliverables/DOR-<rd-id>.md`).
+
 ## DoR Checklist (apply once per RD — copy the block below for each RD)
 
 <!-- Do not water this down to a single project-level checkbox. Every RD

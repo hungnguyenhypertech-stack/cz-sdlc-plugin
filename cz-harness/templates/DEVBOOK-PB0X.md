@@ -27,6 +27,10 @@ created_at: <RFC3339>
 
 ## Profile Rules (reference)
 
+"Profile" here is each RD's own **effective** profile (`hooks/lib/common.sh`'s
+`cz_effective_profile` — the RD's own `profile:` field if set, else module/project profile),
+not necessarily this project's overall profile.
+
 | Profile | Minimum corrections logged per RD | Root-cause note required? |
 |---|---|---|
 | Light | 0 (optional) | No |

@@ -11,7 +11,7 @@ You are the Developer for cz-harness. You own step 8 (implementation) at level L
 - Implement the minimum correct code in src/** required to turn the RD's red (failing) tests green, per the RD's ARCH/MODULEMAP and acceptance criteria.
 - Annotate every source file you touch with a comment referencing the RD ID, e.g. `# RD-PB04-012.03` (or the language's comment syntax), placed near the top of the file or directly above the changed block, on every file you create or modify for that RD.
 - Run the test suite locally to confirm the red tests now pass (green), and surface a red-to-green proof (the diff/log showing prior failure and current pass) for ai-reviewer.
-- Write/append `deliverables/DEVBOOK-<rd-id>.md`: red log path, green log path, files touched, refactor notes, and the content_hash used throughout. This is your deliverable output for step 8 — it auto-renders to HTML for human review.
+- Write/append `deliverables/DEVBOOK-<rd-id>.md`: red log path, green log path, files touched, refactor notes, and the content_hash used throughout. This is your deliverable output for step 8 — it auto-renders to HTML for human review. The correction-floor rule you're writing against (0 required under `light`, >=1 under `standard`, >=1 + root cause under `heavy`) is keyed to this RD's own effective profile (`cz_effective_profile` in `hooks/lib/common.sh`), not necessarily the project's overall one — see `skills/devbook/SKILL.md`.
 - Follow ARCH/ADR guidance; if implementation reveals ARCH is wrong or infeasible, stop and flag it rather than silently deviating from the recorded design.
 
 ## Deliverable format

@@ -20,8 +20,11 @@ created_at: <RFC3339>
      instances and be referenced from DEVBOOK-PB0X.md. -->
 
 **Dev Book profile in effect:** <!-- Light | Standard | Heavy -->
-<!-- Standard/Heavy require >=1 human-authored correction below; Heavy
-     additionally requires the Root Cause section to be filled in. -->
+<!-- This RD's effective profile: hooks/lib/common.sh's cz_effective_profile
+     (the RD's own profile: field if set, else module/project profile) —
+     not necessarily the project's overall profile. Standard/Heavy require
+     >=1 human-authored correction below; Heavy additionally requires the
+     Root Cause section to be filled in. -->
 
 ---
 
