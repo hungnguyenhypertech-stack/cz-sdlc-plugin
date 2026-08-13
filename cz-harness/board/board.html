@@ -72,6 +72,47 @@
   .tab-panel.active { display: block; }
 
   /* ---------- workflow diagram ---------- */
+  .wf-overview {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .wf-overview h2 {
+    margin: 0 0 8px;
+    font-size: 15px;
+    color: var(--text);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .wf-overview-tag {
+    font-size: 10px;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--dim);
+  }
+  .wf-overview p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--dim);
+    max-width: 920px;
+  }
+  .wf-overview-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--dim);
+  }
+  .wf-overview-stats strong { color: var(--blue); }
   .wf-search {
     margin-bottom: 10px;
   }
@@ -113,15 +154,60 @@
     border-radius: 6px;
     background: var(--panel2);
     padding: 8px 12px;
-    min-width: 220px;
-    max-width: 360px;
+    width: 260px;
+    /* no flex-basis here: .wf-node sits directly in .wf-row (column-direction) in
+       most places, where a flex-basis would set HEIGHT instead of width. Row-direction
+       contexts that need a fixed width (.wf-branch-terminal) set flex:0 0 260px
+       themselves, scoped to that context. */
     text-align: center;
     position: relative;
   }
   .wf-node .step { color: var(--blue); font-weight: bold; font-size: 12px; }
   .wf-node .agent { color: var(--dim); font-size: 10px; margin-top: 2px; }
+  /* gate/decision nodes are amber-bordered by default (legend: "gate /
+     decision") but stay a plain rectangle — Risk and DoR's "pass?" never
+     get a drawn alternative path, so a diamond there would imply a fork
+     that isn't shown. Diamond shape is opt-in via .diamond, reserved for
+     decisions that actually branch into two rendered paths (the leash
+     split, the human-approval gate). */
   .wf-node.gate { border-color: var(--amber); }
   .wf-node.gate .step { color: var(--amber); }
+  /* UML-style decision diamond: an unrotated outer wrapper sized to the
+     rotated square's diagonal (so it reserves the right amount of layout
+     space and never overlaps the arrow/pill above or below it), containing
+     the actual rotated-45deg diamond, containing a counter-rotated label so
+     the text stays horizontal and readable. */
+  .wf-node.gate.diamond {
+    border: none;
+    background: transparent;
+    width: 108px;
+    height: 108px;
+    flex: 0 0 108px;
+    padding: 0;
+    margin: 2px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wf-node.gate.diamond .gate-diamond {
+    width: 74px;
+    height: 74px;
+    background: var(--panel2);
+    border: 1px solid var(--amber);
+    border-radius: 5px;
+    transform: rotate(45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wf-node.gate.diamond .gate-inner {
+    transform: rotate(-45deg);
+    width: 62px;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .wf-node.gate.diamond .step { display: block; font-size: 10px; }
+  .wf-node.gate.diamond .agent { display: block; margin-top: 2px; font-size: 9px; }
   .wf-node.spawn { border-style: dashed; border-color: var(--purple); }
   .wf-node.spawn .step { color: var(--purple); }
   .wf-node.terminal-good { border-color: var(--green); }
@@ -140,21 +226,275 @@
     min-height: 16px;
   }
   .wf-arrow.loop { color: var(--red); font-size: 11px; white-space: normal; text-align: center; max-width: 280px; padding: 6px 0; }
+
+  /* ---------- header above the step column ---------- */
+  .wf-col-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  /* horizontal-scroll safety net for anything wider than the panel (the gate-profile
+     branch row, mainly) instead of letting it force page-wide scroll or overflow its
+     own dashed loop-box border */
+  .wf-diagram-scroll { overflow-x: auto; padding-bottom: 6px; }
+  /* every step is click-to-expand — RD-state reads/produces used to sit in an
+     always-on rail beside each node, which pushed the whole diagram off-center;
+     it now lives in the detail sidebar (see .wf-sidebar), opened on click */
+  /* hover cue is a background tint + ring, never border-color — overriding
+     border-color on hover would blank out the node's own semantic color
+     (gate=amber, spawn=purple, terminal-good=green, terminal-bad=red, and the
+     light/standard/heavy profile colors), which is exactly the color that's
+     supposed to tell the reader what kind of step this is. */
+  .wf-clickable { cursor: pointer; }
+  .wf-node.wf-clickable:hover { background: rgba(74, 158, 218, 0.08); box-shadow: 0 0 0 1px var(--blue) inset; }
+  .wf-node.gate.diamond.wf-clickable:hover .gate-diamond { box-shadow: 0 0 0 1px var(--blue) inset; }
+  .wf-profile-col.wf-clickable:hover { background: rgba(74, 158, 218, 0.06); }
   .wf-sub {
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px dashed var(--border);
   }
   .wf-sub-label { color: var(--dim); font-size: 10px; margin-bottom: 6px; text-align: center; }
-  .wf-note { color: var(--dim); font-size: 11px; margin-top: 6px; text-align: center; max-width: 380px; }
+  .wf-note { color: var(--dim); font-size: 11px; margin-top: 6px; text-align: center; max-width: 460px; }
   .wf-branch { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .wf-branch-row { display: flex; flex-direction: row; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  /* ---------- UML-style decision tree: diamond -> arrowed stem -> horizontal
+     bar -> two arrowed drops -> side-by-side branches ---------- */
+  .wf-decision-stem {
+    position: relative;
+    width: 2px;
+    height: 14px;
+    background: var(--amber);
+    margin: 0 auto;
+  }
+  .wf-decision-stem::after {
+    content: "";
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--amber);
+  }
+  .wf-decision-bar-wrap {
+    position: relative;
+    width: 296px;   /* = column width (280) + branch-row gap (16) — keeps the bar's ends lined up over each column's center */
+    height: 16px;
+    margin: 0 auto;
+  }
+  .wf-decision-bar-wrap::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    border-top: 2px solid var(--amber);
+  }
+  .wf-decision-bar-wrap .wf-decision-branch-label {
+    position: absolute;
+    top: -7px;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+    color: var(--amber);
+    background: var(--bg);
+    padding: 0 5px;
+  }
+  .wf-decision-bar-wrap .wf-decision-branch-label.left { left: 0; transform: translateX(-50%); }
+  .wf-decision-bar-wrap .wf-decision-branch-label.right { right: 0; transform: translateX(50%); }
+  /* arrowed drop-line from the horizontal bar into each branch — same
+     stem+arrowhead shape as .wf-decision-stem, reused as a ::before/::after
+     pair so every branch entry reads as a real arrow, not a bare line */
+  .wf-hazard-col, .wf-branch-terminal .wf-node {
+    margin-top: 20px;
+  }
+  /* .wf-branch-terminal is a row-direction container (unlike the column-direction
+     .wf-row every other .wf-node sits in) and holds the accepted/red-retry nodes as
+     direct children, so it needs its own fixed-width flex-basis here. */
+  .wf-branch-terminal .wf-node {
+    flex: 0 0 260px;
+  }
+  .wf-hazard-col::before, .wf-branch-terminal .wf-node::before {
+    content: "";
+    position: absolute;
+    top: -14px; left: 50%;
+    width: 2px; height: 14px;
+    background: var(--amber);
+    transform: translateX(-1px);
+  }
+  .wf-hazard-col::after, .wf-branch-terminal .wf-node::after {
+    content: "";
+    position: absolute;
+    top: -6px; left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--amber);
+  }
+
+  /* ---------- hazard/leash split: two side-by-side paths after the 9.2 gate diamond ---------- */
+  .wf-hazard-branch { display: flex; flex-direction: row; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .wf-hazard-col {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 280px;
+    box-sizing: border-box;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 10px 10px 8px;
+  }
+  .wf-hazard-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: bold;
+    padding: 2px 9px;
+    border-radius: 999px;
+    text-align: center;
+  }
+  .wf-hazard-label.hazard-yes { color: var(--red); border: 1px solid var(--red); }
+  .wf-hazard-label.hazard-no { color: var(--green); border: 1px solid var(--green); }
+  .wf-node.bypass { border-style: dotted; opacity: 0.85; }
+  .wf-node.bypass .step { color: var(--dim); }
+  .wf-hazard-merge { color: var(--dim); font-size: 10px; text-align: center; margin-top: 6px; }
+
+  /* ---------- gate-profile split: light / standard / heavy, resolved once per RD
+     before it enters the phase 7-9 loop (config/gates.yaml: profile + module_overrides,
+     hazard_paths always force heavy regardless of declared profile) ---------- */
+  .wf-profile-bar-wrap {
+    position: relative;
+    width: 872px;   /* = 3 columns (280) + 2 gaps (16), must match .wf-profile-branch's
+                       unwrapped content width exactly or the % label positions below
+                       drift off their column centers */
+    height: 16px;
+    margin: 0 auto;
+  }
+  .wf-profile-bar-wrap::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    border-top: 2px solid var(--amber);
+  }
+  .wf-profile-bar-wrap .wf-profile-branch-label {
+    position: absolute;
+    top: -7px;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+    background: var(--bg);
+    padding: 0 5px;
+  }
+  /* nowrap is deliberate: at 3 columns (872px) this row is wider than the panel
+     on most laptop screens, and .wf-diagram-scroll already provides horizontal
+     scroll for exactly that case. Wrapping to 2+1 would desync the columns from
+     the fixed-width bar/labels above them (each column's arrow stem is anchored
+     to its own top-center, so a wrapped column's stem points at empty space
+     instead of its label). `safe center` keeps it centered when it fits and
+     falls back to scrollable-from-the-start instead of clipping when it doesn't
+     (unsupported browsers silently get plain `center`, same as before). */
+  .wf-profile-branch { display: flex; flex-direction: row; gap: 16px; justify-content: safe center; flex-wrap: nowrap; margin-top: 20px; }
+  .wf-profile-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 280px;
+    flex: 0 0 280px;
+    box-sizing: border-box;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 10px 10px 10px;
+    position: relative;
+  }
+  .wf-profile-col::before {
+    content: "";
+    position: absolute;
+    top: -14px; left: 50%;
+    width: 2px; height: 14px;
+    background: var(--amber);
+    transform: translateX(-1px);
+  }
+  .wf-profile-col::after {
+    content: "";
+    position: absolute;
+    top: -6px; left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--amber);
+  }
+  .wf-profile-label {
+    align-self: center;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: bold;
+    padding: 2px 9px;
+    border-radius: 999px;
+    text-align: center;
+  }
+  .wf-profile-col.light .wf-profile-label { color: var(--blue); border: 1px solid var(--blue); }
+  .wf-profile-col.standard .wf-profile-label { color: var(--dim); border: 1px solid var(--dim); }
+  .wf-profile-col.heavy .wf-profile-label { color: var(--amber); border: 1px solid var(--amber); }
+  .wf-profile-col.light { border-color: var(--blue); }
+  .wf-profile-col.standard { border-color: var(--dim); }
+  .wf-profile-col.heavy { border-color: var(--amber); }
+  .wf-profile-rows { font-size: 10.5px; color: var(--text); display: flex; flex-direction: column; gap: 4px; }
+  .wf-profile-rows .k { color: var(--dim); }
+  .wf-profile-note { color: var(--dim); font-size: 10.5px; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--border); }
+  .wf-profile-col.heavy .wf-profile-note { color: var(--amber); }
+  .wf-profile-merge { color: var(--dim); font-size: 10px; text-align: center; margin-top: 10px; }
+
+  /* ---------- step detail sidebar, opened by clicking any wf-clickable node ---------- */
+  .wf-sidebar-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 80; opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
+  }
+  .wf-sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+  .wf-sidebar {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 380px; max-width: 92vw;
+    background: var(--panel); border-left: 1px solid var(--border);
+    z-index: 81; transform: translateX(100%); transition: transform 0.18s ease;
+    display: flex; flex-direction: column; box-sizing: border-box;
+  }
+  .wf-sidebar.open { transform: translateX(0); }
+  .wf-sidebar-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid var(--border); flex: 0 0 auto;
+  }
+  .wf-sidebar-head h3 { margin: 0; font-size: 14px; color: var(--text); line-height: 1.35; }
+  .wf-sidebar-head .agent-tag { color: var(--dim); font-size: 11px; margin-top: 5px; }
+  .wf-sidebar-close {
+    background: transparent; border: 1px solid var(--border); color: var(--dim);
+    border-radius: 4px; padding: 1px 9px; cursor: pointer; font-family: inherit;
+    font-size: 15px; line-height: 1.5; flex: 0 0 auto;
+  }
+  .wf-sidebar-close:hover { color: var(--text); border-color: var(--blue); }
+  .wf-sidebar-body { padding: 14px 16px; overflow-y: auto; font-size: 12.5px; line-height: 1.6; color: var(--text); }
+  .wf-sidebar-body p { margin: 0 0 10px; }
+  .wf-sidebar-section-label {
+    color: var(--dim); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 16px 0 6px;
+  }
+  .wf-sidebar-section-label:first-child { margin-top: 0; }
+  .wf-sidebar-states { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .wf-sidebar-states .rail-sep { color: var(--border); font-size: 10px; }
+  .wf-sidebar-note { color: var(--dim); font-size: 11.5px; padding-top: 6px; border-top: 1px dashed var(--border); }
 
   /* ---------- the phase 7-9 loop box ---------- */
   .wf-loopbox {
     align-self: stretch;
     width: 100%;
-    max-width: 480px;
+    max-width: 640px;   /* wide enough for the two side-by-side hazard/leash branch columns (296px) plus padding */
     margin: 4px auto;
     border: 2px dashed var(--red);
     border-radius: 10px;
@@ -198,7 +538,7 @@
     margin: 2px 0 8px;
   }
 
-  /* ---------- phase overview table ---------- */
+  /* ---------- glossary table ---------- */
   .wf-table-wrap { margin-top: 18px; overflow-x: auto; }
   table.wf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   table.wf-table th, table.wf-table td {
@@ -208,10 +548,10 @@
     vertical-align: top;
   }
   table.wf-table th { background: var(--panel); color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: 0.03em; }
-  table.wf-table td.runs-once { color: var(--green); white-space: nowrap; }
-  table.wf-table td.runs-loop { color: var(--red); white-space: nowrap; }
-  table.wf-table tr.loop-row td { background: rgba(224, 85, 85, 0.04); }
   table.wf-table code { color: var(--blue); background: var(--panel2); padding: 1px 5px; border-radius: 3px; }
+  table.wf-glossary th:first-child, table.wf-glossary td:first-child { width: 160px; white-space: nowrap; }
+  table.wf-glossary th:nth-child(2), table.wf-glossary th:nth-child(3) { width: 32%; }
+
 
   /* ---------- existing kanban board ---------- */
   .board {
@@ -609,6 +949,72 @@
   .hc-meter-fill.hc-gap { background: var(--amber); }
   .hc-meter-fill.hc-hot { background: var(--red); }
   .hc-meter-value { color: var(--dim); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+  .hc-hero {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+  .hc-hero-number { font-size: 40px; font-weight: bold; color: var(--blue); line-height: 1; white-space: nowrap; }
+  .hc-hero-number-label { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .03em; margin-top: 4px; }
+  .hc-hero-diagnosis { flex: 1; min-width: 280px; color: var(--text); font-size: 12.5px; line-height: 1.6; }
+  .hc-hero-diagnosis strong { color: var(--text); }
+  .hc-hero-diagnosis .good { color: var(--green); }
+  .hc-hero-diagnosis .bad { color: var(--red); }
+
+  /* -- provenance: exact sources every metric on this tab was computed from -- */
+  .hc-sources {
+    color: var(--dim);
+    font-size: 11px;
+    line-height: 1.6;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+  }
+  .hc-sources strong { color: var(--text); }
+  .hc-sources code { color: var(--blue); background: var(--panel2); padding: 0 4px; border-radius: 3px; }
+
+  /* -- per-card sub-metric bars: which part of a bundled ratio is dragging it down -- */
+  .hc-sub-bars { margin: 8px 0 6px; display: flex; flex-direction: column; gap: 5px; }
+  .hc-sub-row { display: grid; grid-template-columns: 1fr 66px; align-items: center; gap: 8px; }
+  .hc-sub-label { color: var(--dim); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hc-sub-track { grid-column: 1 / -1; height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-top: -2px; }
+  .hc-sub-fill { height: 100%; border-radius: 3px; }
+  .hc-sub-fill.good { background: var(--green); }
+  .hc-sub-fill.neutral { background: var(--blue); }
+  .hc-sub-fill.gap { background: var(--amber); }
+  .hc-sub-fill.hot { background: var(--red); }
+  .hc-sub-value { color: var(--text); font-size: 10.5px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* -- per-card mini table (Decision coverage mirrors this instead of bars) -- */
+  .hc-card table.hc-mini-table { width: 100%; border-collapse: collapse; margin: 8px 0 6px; font-size: 10.5px; }
+  .hc-card table.hc-mini-table th, .hc-card table.hc-mini-table td { border: 1px solid var(--border); padding: 3px 6px; text-align: left; }
+  .hc-card table.hc-mini-table th { color: var(--dim); font-weight: normal; text-transform: uppercase; font-size: 9px; letter-spacing: .02em; background: var(--panel2); }
+  .hc-card table.hc-mini-table td.yes { color: var(--green); }
+  .hc-card table.hc-mini-table td.no { color: var(--red); }
+
+  /* -- badge note: a short qualifier appended after clean/gap/critical, e.g. "clean · partial check" -- */
+  .hc-badge-note { color: var(--dim); font-size: 10px; margin-left: 5px; }
+
+  /* -- confidence map: per-dimension evidence basis, so a reader can judge how much to trust each finding -- */
+  .hc-conf-wrap { margin-top: 4px; margin-bottom: 16px; overflow-x: auto; }
+  table.hc-conf-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.hc-conf-table th, table.hc-conf-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  table.hc-conf-table th { background: var(--panel); color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: .03em; }
+  .hc-conf-pill { display: inline-block; font-size: 10px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); text-transform: uppercase; letter-spacing: .02em; }
+  .hc-conf-pill.high { border-color: var(--green); color: var(--green); }
+  .hc-conf-pill.med { border-color: var(--amber); color: var(--amber); }
+  .hc-conf-pill.low { border-color: var(--red); color: var(--red); }
+  .hc-conf-pill.na { border-color: var(--border); color: var(--dim); }
+  .hc-conf-pct { font-weight: bold; font-variant-numeric: tabular-nums; }
+  .hc-conf-note { color: var(--dim); font-size: 10.5px; }
+
 </style>
 </head>
 <body>
@@ -640,6 +1046,19 @@
 <!-- ================= WORKFLOW TAB ================= -->
 <div class="tab-panel active" id="tab-workflow">
 
+  <div class="wf-overview">
+    <h2>cz-harness <span class="wf-overview-tag">AI-native delivery harness</span></h2>
+    <p>Turns a raw requirement into shipped, reviewed code through a strict spec-driven pipeline: phases 0&ndash;6 run once per project (Scope &rarr; Risk), then every Requirement-Deliverable (RD) loops through a resolved gate profile, Definition-of-Ready, a red&rarr;green&rarr;refactor Build, and a fixed-order Gate (AI review, then security if flagged, then human if configured) &mdash; phase 10 rolls up telemetry once the wave drains. Ten role-scoped subagents do the work under a hard L0&ndash;L4 delegation ceiling; enforcement lives in hooks, not just prompts &mdash; strict red-before-green and role boundaries aren't optional.</p>
+    <div class="wf-overview-stats">
+      <span><strong>10</strong> role subagents</span>
+      <span><strong>22</strong> slash commands</span>
+      <span><strong>17</strong> hooks</span>
+      <span><strong>3</strong> gate profiles</span>
+      <span><strong>L0&ndash;L4</strong> delegation ceiling</span>
+      <span><strong>8</strong> RD states</span>
+    </div>
+  </div>
+
   <div class="wf-search">
     <input id="wf-highlight" type="text" placeholder="highlight an agent (e.g. dev, sec-reviewer, sub-pm)&hellip;">
   </div>
@@ -652,60 +1071,102 @@
     <span><span class="swatch" style="background:transparent;border:1px solid var(--red)"></span>terminal &ndash; kill / reject</span>
     <span style="color:var(--red)">&#8630; loop-back edge</span>
     <span><span class="swatch" style="background:transparent;border:2px dashed var(--red)"></span>boxed = loops (repeats per RD)</span>
+    <span><span class="swatch" style="background:transparent;border:1px dashed var(--blue)"></span>profile: light</span>
+    <span><span class="swatch" style="background:transparent;border:1px dashed var(--dim)"></span>profile: standard</span>
+    <span><span class="swatch" style="background:transparent;border:1px dashed var(--amber)"></span>profile: heavy</span>
   </div>
 
-  <!-- Single vertical chain: phases 0-6 run once, top to bottom -->
-  <div class="wf-lane">
-    <span class="wf-once-badge">runs once per project</span>
-    <div class="wf-row" id="wf-top"></div>
-  </div>
+  <div class="wf-diagram-scroll">
+    <div class="wf-col-header">pipeline step &middot; click any step for detail</div>
 
-  <!-- The phase 7-9 loop, visually boxed: repeats once per RD, up to max_in_flight concurrently -->
-  <div class="wf-lane" style="display:flex; justify-content:center;">
-    <div class="wf-loopbox">
-      <span class="wf-loopbox-badge">&#8635; loops &middot; once per RD, up to max_in_flight concurrent</span>
+    <!-- Single vertical chain: phases 0-6 run once, top to bottom -->
+    <div class="wf-lane">
+      <span class="wf-once-badge">runs once per project</span>
+      <div class="wf-row" id="wf-top"></div>
+    </div>
 
-      <div class="wf-sub-label">phase 7 &middot; DoR</div>
-      <div class="wf-row" id="wf-dor"></div>
-
-      <div class="wf-sub">
-        <div class="wf-sub-label">phase 8 &middot; Build (red&rarr;green&rarr;refactor loop, cz-build)</div>
-        <div class="wf-row" id="wf-build"></div>
-        <div class="wf-note">dev is never given tests/** contents. A green run must be byte-identical in test source to its red run, or the loop restarts from test-designer.</div>
+    <!-- Gate-profile split: resolved once per RD, before it enters the phase 7-9 loop.
+         light/standard/heavy set the depth of every step inside the loop below
+         (config/gates.yaml: profile + module_overrides; hazard_paths always force heavy). -->
+    <div class="wf-lane" style="display:flex; justify-content:center;">
+      <div style="width:100%; max-width:940px;">
+        <div class="wf-sub-label">config/gates.yaml &middot; <code>profile</code> + <code>module_overrides</code>, resolved by sub-pm</div>
+        <div class="wf-row" id="wf-profile-gate"></div>
+        <div class="wf-profile-bar-wrap" id="wf-profile-bar"></div>
+        <div class="wf-profile-branch" id="wf-profile-branch"></div>
+        <div class="wf-profile-merge">&darr; resolved depth applies to phases 7&ndash;9 below, for this RD</div>
       </div>
+    </div>
 
-      <div class="wf-sub">
-        <div class="wf-sub-label">phase 9 &middot; Gate (fixed order: AI &rarr; security if flagged &rarr; human if configured)</div>
-        <div class="wf-row" id="wf-gate"></div>
-        <div class="wf-branch" style="margin-top:8px;">
-          <div class="wf-row" id="wf-gate-sec"></div>
-          <div class="wf-branch-row" id="wf-gate-decision"></div>
+    <!-- The phase 7-9 loop, visually boxed: repeats once per RD, up to max_in_flight concurrently -->
+    <div class="wf-lane" style="display:flex; justify-content:center;">
+      <div class="wf-loopbox">
+        <span class="wf-loopbox-badge">&#8635; loops &middot; once per RD, up to max_in_flight concurrent</span>
+
+        <div class="wf-sub-label">phase 7 &middot; DoR</div>
+        <div class="wf-row" id="wf-dor"></div>
+
+        <div class="wf-sub">
+          <div class="wf-sub-label">phase 8 &middot; Build (red&rarr;green&rarr;refactor loop, cz-build)</div>
+          <div class="wf-row" id="wf-build"></div>
+          <div class="wf-note">dev is never given tests/** contents. A green run must be byte-identical in test source to its red run, or the loop restarts from test-designer.</div>
+        </div>
+
+        <div class="wf-sub">
+          <div class="wf-sub-label">phase 9 &middot; Gate (fixed order: AI &rarr; security if leash A/A+ &rarr; human if configured)</div>
+          <div class="wf-row" id="wf-gate"></div>
+          <div class="wf-note">leash rating read from the delegation map, set by hazard ranking</div>
+
+          <div class="wf-decision-stem"></div>
+          <div class="wf-decision-bar-wrap">
+            <span class="wf-decision-branch-label left">YES</span>
+            <span class="wf-decision-branch-label right">NO</span>
+          </div>
+          <div class="wf-hazard-branch">
+            <div class="wf-hazard-col">
+              <span class="wf-hazard-label hazard-yes">leash A / A+ &middot; hazard path</span>
+              <div class="wf-row" id="wf-gate-hazard"></div>
+            </div>
+            <div class="wf-hazard-col">
+              <span class="wf-hazard-label hazard-no">leash B or lower &middot; standard path</span>
+              <div class="wf-row" id="wf-gate-standard"></div>
+            </div>
+          </div>
+          <div class="wf-hazard-merge">both paths rejoin &darr;</div>
+
+          <div class="wf-branch" style="margin-top:2px;">
+            <div class="wf-branch-row" id="wf-gate-decision"></div>
+          </div>
+          <div class="wf-note">human approval required only if human_gates.gate is true for this RD</div>
+        </div>
+
+        <div class="wf-loop-back">
+          &#8630; rejected / red &rarr; loops back to Build (8.1), never straight to a gate retry.<br>
+          &#8635; accepted &rarr; sub-pm claims the next eligible RD &rarr; this whole box runs again.
         </div>
       </div>
+    </div>
 
-      <div class="wf-loop-back">
-        &#8630; rejected / red &rarr; loops back to Build (8.1), never straight to a gate retry.<br>
-        &#8635; accepted &rarr; sub-pm claims the next eligible RD &rarr; this whole box runs again.
-      </div>
+    <!-- After the loop drains: phase 10, once per wave -->
+    <div class="wf-lane">
+      <span class="wf-once-badge">runs once &middot; after all RDs in the wave are accepted</span>
+      <div class="wf-row" id="wf-bottom"></div>
     </div>
   </div>
 
-  <!-- After the loop drains: phase 10, once per wave -->
-  <div class="wf-lane">
-    <span class="wf-once-badge">runs once &middot; after all RDs in the wave are accepted</span>
-    <div class="wf-row" id="wf-bottom"></div>
-  </div>
-
-  <!-- Phase overview table -->
+  <!-- Glossary: per-phase agent/command/state/runs detail moved into each step's
+       click sidebar (see STEP_DETAILS) — this table is terms, not phases. -->
   <div class="wf-table-wrap">
-    <table class="wf-table">
+    <div class="section-label">glossary &middot; thu&#7853;t ng&#7919;</div>
+    <table class="wf-table wf-glossary">
       <thead>
-        <tr><th>Phase</th><th>Name</th><th>Agent(s)</th><th>Command</th><th>Runs</th></tr>
+        <tr><th>Term</th><th>English</th><th>Ti&#7871;ng Vi&#7879;t</th></tr>
       </thead>
-      <tbody id="wf-table-body"></tbody>
+      <tbody id="wf-glossary-body"></tbody>
     </table>
   </div>
 </div>
+
 
 <!-- ================= LIVE BOARD TAB ================= -->
 <div class="tab-panel" id="tab-live">
@@ -824,6 +1285,9 @@
 
   <div class="hc-meta" id="hc-meta"></div>
 
+  <div class="hc-hero" id="hc-hero"></div>
+  <div class="hc-sources" id="hc-sources"></div>
+
   <div class="hc-strip" id="hc-strip"></div>
 
   <div class="section-label">overview &middot; at a glance, before the per-dimension numbers below</div>
@@ -843,6 +1307,16 @@
 
   <div class="section-label">7 traceability dimensions &middot; click a card to expand findings</div>
   <div class="hc-grid" id="hc-grid"></div>
+
+  <div class="section-label" id="hc-conf-label">confidence map &middot; how much evidence backs each dimension's finding, and from where</div>
+  <div class="hc-conf-wrap" id="hc-conf-wrap">
+    <table class="hc-conf-table">
+      <thead>
+        <tr><th>Dimension</th><th>Docs</th><th>Code</th><th>Tests</th><th>Config/Git</th><th>Confidence</th><th>Why</th></tr>
+      </thead>
+      <tbody id="hc-conf-body"></tbody>
+    </table>
+  </div>
 
   <div class="lb-filterbar">
     <input id="hc-filter" type="text" placeholder="filter next actions by dimension or keyword&hellip;">
@@ -903,6 +1377,18 @@
 
   </div><!-- /.app-main -->
 </div><!-- /.shell -->
+
+<div class="wf-sidebar-overlay" id="wf-sidebar-overlay"></div>
+<div class="wf-sidebar" id="wf-sidebar" role="dialog" aria-modal="true" aria-labelledby="wf-sidebar-title">
+  <div class="wf-sidebar-head">
+    <div>
+      <h3 id="wf-sidebar-title"></h3>
+      <div class="agent-tag" id="wf-sidebar-agent"></div>
+    </div>
+    <button class="wf-sidebar-close" id="wf-sidebar-close" aria-label="close">&times;</button>
+  </div>
+  <div class="wf-sidebar-body" id="wf-sidebar-body"></div>
+</div>
 
 <script>
 const STALL_THRESHOLD_S = 180;      // default; overridden if board.json.concurrency.stall_threshold_s present
@@ -981,18 +1467,35 @@ function openAgentDrawer(a, stalled, ageS) {
 }
 
 /* ---------------- workflow diagram data ---------------- */
+function statePill(s) {
+  return `<span class="rd-state rd-state-${s}">${s}</span>`;
+}
 function node(step, label, agent, opts) {
   opts = opts || {};
-  const cls = ["wf-node"];
+  const cls = ["wf-node", "wf-clickable"];
   if (opts.spawn) cls.push("spawn");
   if (opts.gate) cls.push("gate");
+  if (opts.branch) cls.push("diamond");
   if (opts.good) cls.push("terminal-good");
   if (opts.bad) cls.push("terminal-bad");
+  if (opts.bypass) cls.push("bypass");
   const el = document.createElement("div");
   el.className = cls.join(" ");
   el.dataset.agent = agent || "";
-  el.innerHTML = `<div class="step">${step ? step + " &middot; " : ""}${label}</div>` +
+  // detailKey identifies this node's entry in STEP_DETAILS for the click-to-open
+  // sidebar; states used to render as an always-on rail beside every node (RD
+  // state, reads -> produces) but that pinned the whole diagram left of center —
+  // it's carried on the element instead and shown in the sidebar on demand.
+  el.dataset.detailKey = opts.detailKey || step || label;
+  el._wfStates = opts.states || [];
+  const inner = `<div class="step">${step ? step + " &middot; " : ""}${label}</div>` +
     (agent ? `<div class="agent">${opts.spawn ? "&#9889; spawn: " : "agent: "}${agent}</div>` : "");
+  // only decisions that actually branch into two rendered paths render as a
+  // rotated (diamond) square, UML-flowchart style — the content must be
+  // wrapped and counter-rotated so the label stays upright. Gate nodes with
+  // no drawn branch (Risk, DoR's pass?) stay a plain amber rectangle so the
+  // shape doesn't promise a fork the diagram doesn't show.
+  el.innerHTML = opts.branch ? `<div class="gate-diamond"><div class="gate-inner">${inner}</div></div>` : inner;
   return el;
 }
 function arrow(text) {
@@ -1017,90 +1520,338 @@ fillRow("wf-top", [
   node("4", "WBS", "planner"), arrow(),
   node("5", "Estimate", "planner"), arrow(),
   node("6", "Risk", "risk-gov", {gate:true}), arrow(),
-  node("", "Decompose wave into RDs", "sub-pm"), arrow(),
-  node("", "Claim next eligible RD<br>(respects max_in_flight + hazard-serial rule)", "sub-pm"), arrow("&#9889; dispatch into the phase 7&ndash;9 loop &darr;"),
+  node("", "Decompose wave into RDs", "sub-pm", {states:["draft"], detailKey:"decompose-rds"}), arrow(),
+  node("", "Claim next eligible RD<br>(respects max_in_flight + hazard-serial rule)", "sub-pm", {states:["draft","blocked_dep"], detailKey:"claim-rd"}), arrow("&#9889; resolve gate profile for this RD &darr;"),
 ]);
+
+/* -------- gate-profile split: light / standard / heavy, resolved once per RD -------- */
+fillRow("wf-profile-gate", [
+  node("", "gate<br>profile?", "sub-pm", {gate:true, branch:true, detailKey:"profile-decision"}),
+]);
+// top-level (not IIFE-scoped) so STEP_DETAILS further down can reuse the same
+// rows/note text for each column's sidebar body instead of duplicating it.
+const WF_PROFILE_COLS = [
+  { cls: "light", key: "profile-light", label: "LIGHT", rows: [
+      ["red proof", "layer1, skippable (<code>red_skipped:true</code>)"],
+      ["AI review", "1 pass, short checklist"],
+      ["security review", "skipped"],
+      ["delegation", "L3 / leash A"],
+      ["dev book", "per RD"],
+    ], note: "concurrency default: bounded (max 2)" },
+  { cls: "standard", key: "profile-standard", label: "STANDARD", rows: [
+      ["red proof", "every RD"],
+      ["AI review", "1 pass, full checklist"],
+      ["security review", "on hazard-path touch"],
+      ["delegation", "L3 / leash A"],
+      ["dev book", "per RD + &ge;1 correction"],
+    ], note: "concurrency default: bounded (max 3) &middot; this project's setting" },
+  { cls: "heavy", key: "profile-heavy", label: "HEAVY", rows: [
+      ["red proof", "every RD + AC-coverage threshold"],
+      ["AI review", "2 passes + adversarial + 2nd model"],
+      ["security review", "always"],
+      ["delegation", "L4 / leash A+, per-action approval"],
+      ["dev book", "per RD + correction + root cause"],
+    ], note: "&#9888; forced here (any profile) if the diff touches a hazard_path &mdash; auth/**, migrations/**, secrets, payment/**, pii/**, .github/workflows/**" },
+];
+(function () {
+  const bar = document.getElementById("wf-profile-bar");
+  bar.innerHTML =
+    `<span class="wf-profile-branch-label" style="left:16.6%; transform:translateX(-50%); color:var(--blue)">LIGHT</span>` +
+    `<span class="wf-profile-branch-label" style="left:50%; transform:translateX(-50%); color:var(--dim)">STANDARD</span>` +
+    `<span class="wf-profile-branch-label" style="left:83.3%; transform:translateX(-50%); color:var(--amber)">HEAVY</span>`;
+
+  const branch = document.getElementById("wf-profile-branch");
+  WF_PROFILE_COLS.forEach(c => {
+    const col = document.createElement("div");
+    col.className = "wf-profile-col wf-clickable " + c.cls;
+    col.dataset.detailKey = c.key;
+    const rowsHtml = c.rows.map(([k, v]) => `<div><span class="k">${k}:</span> ${v}</div>`).join("");
+    col.innerHTML =
+      `<span class="wf-profile-label">${c.label}</span>` +
+      `<div class="wf-profile-rows">${rowsHtml}</div>` +
+      `<div class="wf-profile-note">${c.note}</div>`;
+    branch.appendChild(col);
+  });
+})();
 
 /* -------- inside the loop box: phases 7-9, repeat per RD -------- */
 fillRow("wf-dor", [
-  node("7", "DoR check<br>(6 validity rules + testability)", "test-designer", {spawn:true}), arrow(),
-  node("", "pass?", "sub-pm", {gate:true}),
+  node("7", "DoR check<br>(6 validity rules + testability)", "test-designer", {spawn:true, states:["draft","ready"]}), arrow(),
+  node("", "pass?", "sub-pm", {gate:true, detailKey:"dor-pass"}),
 ]);
 
 fillRow("wf-build", [
-  node("8.1", "Claim lock", "cz-build"), arrow(),
-  node("8.2", "Write red tests", "test-designer", {spawn:true}), arrow(),
-  node("8.3", "Run tests<br>(must fail)", "cz-build"), arrow(),
-  node("8.4", "Implement to pass AC<br>(no test-file access)", "dev", {spawn:true}), arrow(),
-  node("8.5", "Run tests<br>(must pass, byte-identical)", "cz-build"), arrow(),
-  node("8.6", "Refactor (optional, self-loop)", "dev", {spawn:true}), arrow(),
-  node("8.7", "Write DEVBOOK &rarr; hand off", "cz-build"),
+  node("8.1", "Claim lock", "cz-build", {states:["ready","claimed"]}), arrow(),
+  node("8.2", "Write red tests", "test-designer", {spawn:true, states:["claimed"]}), arrow(),
+  node("8.3", "Run tests<br>(must fail)", "cz-build", {states:["claimed","red"]}), arrow(),
+  node("8.4", "Implement to pass AC<br>(no test-file access)", "dev", {spawn:true, states:["red"]}), arrow(),
+  node("8.5", "Run tests<br>(must pass, byte-identical)", "cz-build", {states:["red","green"]}), arrow(),
+  node("8.6", "Refactor (optional, self-loop)", "dev", {spawn:true, states:["red","red"]}), arrow(),
+  node("8.7", "Write DEVBOOK &rarr; hand off", "cz-build", {states:["green"]}),
 ]);
 
 fillRow("wf-gate", [
-  node("9.1", "Claim / restamp lock", "ai-reviewer"), arrow(),
-  node("9.2", "AI review<br>(AC coverage, scope, RD annotation)", "ai-reviewer", {spawn:true}), arrow(),
-  node("", "hazard=high<br>or leash=A ?", "sub-pm", {gate:true}),
+  node("9.1", "Claim / restamp lock", "ai-reviewer", {states:["green"]}), arrow(),
+  node("9.2", "AI review<br>(AC coverage, scope, RD annotation)", "ai-reviewer", {spawn:true, states:["green","ai_review"]}), arrow(),
+  node("", "leash =<br>A / A+ ?", "sub-pm", {gate:true, branch:true, states:["ai_review"], detailKey:"gate-leash"}),
 ]);
-fillRow("wf-gate-sec", [
-  node("9.3", "Security review<br>(injection, secrets, auth bypass)<br><em>if flagged, else skip</em>", "sec-reviewer", {spawn:true, gate:false}),
+/* hazard split: leash A/A+ RDs must pass security review; everything else bypasses it */
+fillRow("wf-gate-hazard", [
+  arrow(),
+  node("9.3", "Security review<br>(injection, secrets, auth bypass)", "sec-reviewer", {spawn:true, states:["ai_review","sec_review"]}),
+]);
+fillRow("wf-gate-standard", [
+  arrow(),
+  node("", "Bypass security review<br>(leash B or lower &rarr; not hazard-ranked)", "sub-pm", {bypass:true, states:["ai_review","sec_review"], detailKey:"gate-bypass"}),
 ]);
 fillRow("wf-gate-decision", [
-  node("9.4", "human_gates.gate?<br>(human approval if true)", "human", {gate:true}),
-  arrow(),
+  node("9.4", "human_gates<br>.gate?", "human", {gate:true, branch:true, states:["sec_review","human_review"], detailKey:"gate-human"}),
 ]);
-/* terminal branch: accepted vs rejected, side by side */
+/* terminal branch: accepted vs rejected, side by side (same diamond -> stem -> bar -> drops pattern as the hazard split above) */
 (function () {
+  const wrap = document.getElementById("wf-gate-decision").parentElement;
+
+  const stem = document.createElement("div");
+  stem.className = "wf-decision-stem";
+  wrap.appendChild(stem);
+
+  const bar = document.createElement("div");
+  bar.className = "wf-decision-bar-wrap";
+  bar.style.width = "274px"; // = terminal node width (260) + branch-row gap (14)
+  bar.innerHTML = `<span class="wf-decision-branch-label left">YES</span><span class="wf-decision-branch-label right">NO</span>`;
+  wrap.appendChild(bar);
+
   const branchRow = document.createElement("div");
-  branchRow.className = "wf-branch-row";
-  branchRow.appendChild(node("9.5a", "accepted", "", {good:true}));
-  branchRow.appendChild(node("9.5b", "red (retry build)", "", {bad:true}));
-  document.getElementById("wf-gate-decision").parentElement.appendChild(branchRow);
+  branchRow.className = "wf-branch-row wf-branch-terminal";
+  branchRow.appendChild(node("9.5a", "accepted", "", {good:true, states:["human_review","accepted"]}));
+  branchRow.appendChild(node("9.5b", "red (retry build)", "", {bad:true, states:["rejected","red"]}));
+  wrap.appendChild(branchRow);
 })();
 
 /* -------- bottom: phase 10, run once, after the loop drains -------- */
 fillRow("wf-bottom", [
-  node("10", "Roll up telemetry &rarr; RTM / WEEKLY / CASE-STUDY", "agentops", {spawn:true, good:true}),
+  node("10", "Roll up telemetry &rarr; RTM / WEEKLY / CASE-STUDY", "agentops", {spawn:true, good:true, states:["accepted"]}),
 ]);
 
-/* -------- phase overview table -------- */
-const PHASE_OVERVIEW = [
-  { phase: "0",  name: "Scope",                              agents: "ba",                                   cmd: "/cz:scope",   runs: "once", runsLabel: "Once per project" },
-  { phase: "1",  name: "Spec",                                agents: "ba",                                   cmd: "/cz:spec",    runs: "once", runsLabel: "Once per project" },
-  { phase: "2",  name: "Modulemap",                           agents: "sa",                                   cmd: "/cz:modulemap", runs: "once", runsLabel: "Once per project" },
-  { phase: "3",  name: "Arch",                                agents: "sa",                                   cmd: "/cz:arch",    runs: "once", runsLabel: "Once per project" },
-  { phase: "4",  name: "WBS",                                 agents: "planner",                              cmd: "/cz:wbs",     runs: "once", runsLabel: "Once per project" },
-  { phase: "5",  name: "Estimate",                            agents: "planner",                              cmd: "/cz:estimate", runs: "once", runsLabel: "Once per project" },
-  { phase: "6",  name: "Risk (gate)",                         agents: "risk-gov",                             cmd: "/cz:risk",    runs: "once", runsLabel: "Once per project" },
-  { phase: "&mdash;", name: "Decompose &amp; schedule RDs",   agents: "sub-pm",                                cmd: "/cz:rd",      runs: "once", runsLabel: "Once per wave, then continuous scheduling" },
-  { phase: "7",  name: "DoR",                                 agents: "test-designer, sub-pm",                cmd: "/cz:dor",     runs: "loop", runsLabel: "Loops &mdash; once per RD" },
-  { phase: "8",  name: "Build (red&rarr;green&rarr;refactor)", agents: "test-designer, dev, cz-build",        cmd: "/cz:build",   runs: "loop", runsLabel: "Loops &mdash; per RD, can retry" },
-  { phase: "9",  name: "Gate (AI &rarr; security &rarr; human)", agents: "ai-reviewer, sec-reviewer, human",  cmd: "/cz:gate",    runs: "loop", runsLabel: "Loops &mdash; per RD, can send back to Build" },
-  { phase: "10", name: "Report",                              agents: "agentops",                             cmd: "/cz:report",  runs: "once", runsLabel: "Once, after all RDs in the wave are accepted" },
-];
-const tbody = document.getElementById("wf-table-body");
-PHASE_OVERVIEW.forEach(p => {
-  const tr = document.createElement("tr");
-  if (p.runs === "loop") tr.className = "loop-row";
-  tr.innerHTML =
-    `<td>${p.phase}</td>` +
-    `<td>${p.name}</td>` +
-    `<td>${p.agents}</td>` +
-    `<td><code>${p.cmd}</code></td>` +
-    `<td class="${p.runs === 'loop' ? 'runs-loop' : 'runs-once'}">${p.runs === 'loop' ? '&#8635; ' : '&#10003; '}${p.runsLabel}</td>`;
-  tbody.appendChild(tr);
+/* ---------------- step detail sidebar: content + open/close wiring ----------------
+   Per-phase agent/command/RD-states/runs-cadence used to live in a table at the
+   bottom of the tab (see git history) — moved in here, one step at a time, instead
+   of a separate table the reader has to cross-reference against the diagram. */
+
+// which model/delegation-level each agent runs at (from each agent's own frontmatter
+// + "You own step N at level LN" line) — cz-build is the /cz:build command's own
+// deterministic bookkeeping (claim/lock/test-runner calls), not an LLM subagent.
+const AGENT_INFO = {
+  "ba":            { model: "opus",   level: "L1" },
+  "sa":            { model: "opus",   level: "L2" },
+  "planner":       { model: "sonnet", level: "L2" },
+  "risk-gov":      { model: "sonnet", level: "L2" },
+  "sub-pm":        { model: "sonnet", level: "L4" },
+  "test-designer": { model: "sonnet", level: "L3" },
+  "dev":           { model: "sonnet", level: "L3" },
+  "ai-reviewer":   { model: "opus",   level: "L0" },
+  "sec-reviewer":  { model: "opus",   level: "L0" },
+  "agentops":      { model: "sonnet", level: "L3" },
+  "cz-build":      { note: "deterministic &mdash; /cz:build's own claim/lock + test-runner bookkeeping, no LLM call" },
+  "human":         { note: "manual sign-off &mdash; not an agent, no model/level applies" },
+};
+
+const STEP_DETAILS = {
+  "0": { title: "Phase 0 &middot; Scope", agent: "ba", cmd: "/cz:scope", runs: "Once per project", body: [
+    "Captures the project's scope and boundaries before any spec work starts &mdash; what's in, what's explicitly out.",
+    "This is the one phase whose human gate defaults to <code>true</code> in <code>config/gates.yaml</code> and can't be fully removed by lowering the profile &mdash; it's the project's last unconditional human checkpoint."
+  ]},
+  "1": { title: "Phase 1 &middot; Spec", agent: "ba", cmd: "/cz:spec", runs: "Once per project", body: [
+    "Turns the approved scope into numbered <code>REQ-*</code> requirements &mdash; the atomic units everything downstream (modules, RDs, tests) traces back to."
+  ]},
+  "2": { title: "Phase 2 &middot; Modulemap", agent: "sa", cmd: "/cz:modulemap", runs: "Once per project", body: [
+    "Partitions the REQ-* requirements into modules and assigns each a foundation or surface layer, so later phases know what depends on what."
+  ]},
+  "3": { title: "Phase 3 &middot; Arch", agent: "sa", cmd: "/cz:arch", runs: "Once per project", body: [
+    "Designs the system architecture across the module map and records key decisions as ADRs. Produces the ARCH doc that planning and risk both read from."
+  ]},
+  "4": { title: "Phase 4 &middot; WBS", agent: "planner", cmd: "/cz:wbs", runs: "Once per project", body: [
+    "Builds a rolling-wave work breakdown structure from the architecture &mdash; enough detail to schedule the next wave, not the whole project up front."
+  ]},
+  "5": { title: "Phase 5 &middot; Estimate", agent: "planner", cmd: "/cz:estimate", runs: "Once per project", body: [
+    "Rolls up three-point RD estimates into a project-level estimate, feeding the budget checks in <code>config/gates.yaml</code> (<code>per_rd_usd_soft</code>, <code>per_wave_usd_hard</code>)."
+  ]},
+  "6": { title: "Phase 6 &middot; Risk (gate)", agent: "risk-gov", cmd: "/cz:risk", runs: "Once per project", body: [
+    "Assesses risk and sets the agent-delegation ceiling per module/RD, and owns the delegation map (L0&ndash;L4 + leash A/A+ per RD).",
+    "risk-gov may <em>propose</em> a profile change, but only a human can commit it &mdash; and that commit is itself an audited governance event (<code>one_way_ratchet</code>, gates.yaml)."
+  ]},
+  "decompose-rds": { title: "Decompose wave into RDs", agent: "sub-pm", cmd: "/cz:rd", runs: "Once per wave, then continuous scheduling", body: [
+    "Splits the current wave into Requirement-Deliverables (RDs) against six validity rules, so each RD is independently claimable, testable, and gate-able.",
+    "Runs once per wave, then sub-pm keeps scheduling continuously as RDs clear."
+  ]},
+  "claim-rd": { title: "Claim next eligible RD", agent: "sub-pm", runs: "Loops &mdash; fires every time an in-flight slot frees up", body: [
+    "sub-pm claims the next eligible RD, respecting <code>concurrency.max_in_flight</code> and the hazard-serial rule &mdash; hazard RDs always drain to zero in-flight before any hazard RD is claimed.",
+    "Once claimed, the RD's effective gate profile is resolved before it enters the phase 7&ndash;9 loop below."
+  ]},
+  "profile-decision": { title: "Resolve gate profile", agent: "sub-pm", runs: "Loops &mdash; once per RD, right after claim", body: [
+    "Reads <code>config/gates.yaml</code>: the project-level <code>profile</code> (light/standard/heavy), then applies any <code>module_overrides</code> for this RD's module.",
+    "One override always wins regardless of the above: a diff touching a <code>hazard_paths</code> pattern (auth/**, migrations/**, secrets, payment/**, pii/**, .github/workflows/**) forces <strong>heavy</strong> for that RD. This is a <code>one_way_ratchet</code> invariant &mdash; no profile setting can lower it."
+  ]},
+  "profile-light": null, "profile-standard": null, "profile-heavy": null, // filled from WF_PROFILE_COLS below
+  "7": { title: "Phase 7 &middot; DoR check", agent: "test-designer", cmd: "/cz:dor", runs: "Loops &mdash; once per RD", body: [
+    "Checks the RD against six validity rules plus testability, before it's allowed into Build. This is the gate that keeps vague or oversized RDs out of the loop."
+  ]},
+  "dor-pass": { title: "DoR pass?", agent: "sub-pm", cmd: "/cz:dor", runs: "Loops &mdash; once per RD", body: [
+    "If DoR fails, the RD stays <code>draft</code>/<code>blocked_dep</code> for re-scoping. Only a passing RD becomes <code>ready</code> to claim into Build (8.1).",
+    "How strict this check is depends on the resolved gate profile's <em>red proof</em> row &mdash; see the profile branch above."
+  ]},
+  "8.1": { title: "8.1 &middot; Claim lock", agent: "cz-build", cmd: "/cz:build", runs: "Loops &mdash; once per RD, can retry", body: ["Stamps the RD <code>claimed</code> so no other agent can pick it up concurrently, respecting <code>max_in_flight</code>."] },
+  "8.2": { title: "8.2 &middot; Write red tests", agent: "test-designer", cmd: "/cz:build", runs: "Loops &mdash; once per RD, can retry", body: [
+    "Writes tests derived strictly from the RD's acceptance criteria. dev is never given this file's contents &mdash; that separation is what makes the red/green proof meaningful."
+  ]},
+  "8.3": { title: "8.3 &middot; Run tests (must fail)", agent: "cz-build", cmd: "/cz:build", runs: "Loops &mdash; once per RD, can retry", body: ["Confirms the new tests actually fail against the current code (red) &mdash; proof they're testing something real, not vacuously passing."] },
+  "8.4": { title: "8.4 &middot; Implement to pass AC", agent: "dev", cmd: "/cz:build", runs: "Loops &mdash; once per RD, can retry", body: ["Implements <code>src/**</code> to satisfy the acceptance criteria, without ever reading <code>tests/**</code> contents."] },
+  "8.5": { title: "8.5 &middot; Run tests (must pass)", agent: "cz-build", cmd: "/cz:build", runs: "Loops &mdash; once per RD, can retry", body: [
+    "Reruns the tests; they must pass, and the test source must be byte-identical to the red run (8.3) or the loop restarts from test-designer (8.2)."
+  ]},
+  "8.6": { title: "8.6 &middot; Refactor (optional)", agent: "dev", cmd: "/cz:build", runs: "Optional self-loop, once per RD", body: ["Optional self-loop: dev may clean up the implementation while staying green, before handing off to the Dev Book step."] },
+  "8.7": { title: "8.7 &middot; Write DEVBOOK", agent: "cz-build", cmd: "/cz:build", runs: "Loops &mdash; once per RD, can retry", body: [
+    "Writes <code>deliverables/DEVBOOK-&lt;rd-id&gt;.md</code> documenting the build, then hands off to Gate (phase 9).",
+    "The correction-floor requirement scales with the resolved gate profile &mdash; light wants a Dev Book per RD, standard adds &ge;1 correction, heavy adds a root-cause note too."
+  ]},
+  "9.1": { title: "9.1 &middot; Claim / restamp lock", agent: "ai-reviewer", cmd: "/cz:gate", runs: "Loops &mdash; once per RD, can send back to Build", body: ["ai-reviewer takes the review claim on the now-green RD, before AI review starts."] },
+  "9.2": { title: "9.2 &middot; AI review", agent: "ai-reviewer", cmd: "/cz:gate", runs: "Loops &mdash; once per RD, can send back to Build", body: [
+    "Read-only review of AC coverage, scope, and RD annotation. Depth is set by the resolved gate profile: light gets one short-checklist pass, standard one full pass, heavy two passes plus an adversarial pass and a second model."
+  ]},
+  "gate-leash": { title: "leash = A / A+ ?", agent: "sub-pm", cmd: "/cz:gate", runs: "Loops &mdash; once per RD", body: [
+    "Branches on the RD's leash rating from the delegation map (set by risk-gov's hazard ranking in Phase 6). Leash A/A+ RDs must pass security review; everything else can bypass it &mdash; unless the resolved profile is heavy, which always requires security review regardless of leash."
+  ]},
+  "9.3": { title: "9.3 &middot; Security review", agent: "sec-reviewer", cmd: "/cz:gate", runs: "Loops &mdash; once per RD, when triggered", body: ["Checks for injection, secrets exposure, and auth bypass. Required for leash A/A+ RDs, or under a heavy profile, or whenever the diff touches a hazard_path."] },
+  "gate-bypass": { title: "Bypass security review", agent: "sub-pm", cmd: "/cz:gate", runs: "Loops &mdash; once per RD, when not triggered", body: ["Skipped only for leash-B-or-lower RDs that aren't hazard-ranked, under light or standard profile. Still recorded in the gate record as <code>not_required</code>, not silently omitted."] },
+  "gate-human": { title: "human_gates.gate?", agent: "human", cmd: "/cz:gate", runs: "Loops &mdash; once per RD, only when human_gates.gate is true", body: [
+    "Blocks on manual sign-off only if <code>human_gates.gate</code> is <code>true</code> for this RD in <code>config/gates.yaml</code> &mdash; it defaults to <code>false</code> for every phase except Scope.",
+    "AI review and, where triggered, security review always run and are always recorded regardless of this setting; human_gates only controls the approval step downstream of them."
+  ]},
+  "9.5a": { title: "Accepted", agent: "", runs: "Terminal &mdash; ends this pass through the loop", body: ["The RD moves to <code>accepted</code>. sub-pm is now free to claim the next eligible RD (back to the top of this loop)."] },
+  "9.5b": { title: "Red &mdash; retry build", agent: "", runs: "Terminal &mdash; loops back to 8.1", body: ["Rejected or a failing review sends the RD back to Build (8.1) &mdash; never straight to another gate attempt."] },
+  "10": { title: "Phase 10 &middot; Report", agent: "agentops", cmd: "/cz:report", runs: "Once, after all RDs in the wave are accepted", body: [
+    "Rolls up telemetry into the RTM, WEEKLY, and CASE-STUDY deliverables, once every RD in the wave has been accepted. Runs once per wave, after the phase 7&ndash;9 loop has fully drained."
+  ]},
+};
+WF_PROFILE_COLS.forEach(c => {
+  const rowsHtml = c.rows.map(([k, v]) => `<div><span class="k">${k}:</span> ${v}</div>`).join("");
+  STEP_DETAILS[c.key] = {
+    title: `Gate profile &middot; ${c.label}`,
+    agent: "",
+    runs: "Config-resolved, not a run &mdash; applies for as long as this RD's profile stays " + c.label.toLowerCase(),
+    body: [
+      `<div class="wf-profile-rows">${rowsHtml}</div>`,
+      `<div class="wf-sidebar-note">${c.note}</div>`,
+    ],
+  };
 });
+
+const wfSidebar = document.getElementById("wf-sidebar");
+const wfSidebarOverlay = document.getElementById("wf-sidebar-overlay");
+const wfSidebarTitle = document.getElementById("wf-sidebar-title");
+const wfSidebarAgent = document.getElementById("wf-sidebar-agent");
+const wfSidebarBody = document.getElementById("wf-sidebar-body");
+
+function openStepDetail(el) {
+  const key = el.dataset.detailKey;
+  const d = STEP_DETAILS[key];
+  if (!d) return;
+  wfSidebarTitle.innerHTML = d.title || key;
+  wfSidebarAgent.innerHTML = d.agent ? `agent: ${d.agent}${d.cmd ? " &middot; <code>" + d.cmd + "</code>" : ""}` : (d.cmd ? `<code>${d.cmd}</code>` : "");
+
+  const info = AGENT_INFO[d.agent];
+  const modelHtml = info
+    ? (info.model
+        ? `<div class="wf-sidebar-section-label">Model &amp; effort</div>` +
+          `<p>Model: <code>${info.model}</code> &middot; delegation level: <code>${info.level}</code></p>`
+        : `<div class="wf-sidebar-section-label">Model &amp; effort</div><p>${info.note}</p>`)
+    : "";
+  const runsHtml = d.runs
+    ? `<div class="wf-sidebar-section-label">Runs</div><p>${d.runs}</p>`
+    : "";
+
+  const states = el._wfStates || [];
+  const statesHtml = states.length
+    ? `<div class="wf-sidebar-section-label">&#8677; RD state (reads &rarr; produces)</div>` +
+      `<div class="wf-sidebar-states">${states.map((s, i) => (i > 0 ? `<span class="rail-sep">&rarr;</span>` : "") + statePill(s)).join("")}</div>`
+    : "";
+  wfSidebarBody.innerHTML = d.body.map(p => `<p>${p}</p>`).join("") + statesHtml + runsHtml + modelHtml;
+  wfSidebarOverlay.classList.add("open");
+  wfSidebar.classList.add("open");
+}
+function closeStepDetail() {
+  wfSidebarOverlay.classList.remove("open");
+  wfSidebar.classList.remove("open");
+}
+document.getElementById("wf-sidebar-close").addEventListener("click", closeStepDetail);
+wfSidebarOverlay.addEventListener("click", closeStepDetail);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeStepDetail(); });
+document.getElementById("tab-workflow").addEventListener("click", e => {
+  const n = e.target.closest(".wf-clickable");
+  if (n) openStepDetail(n);
+});
+
+/* ---------------- glossary: terms used across the workflow tab, EN + VN ---------------- */
+const WF_GLOSSARY = [
+  ["RD", "Requirement-Deliverable &mdash; the atomic, independently claimable/testable/gate-able unit of work cz-harness schedules. ID shape <code>RD-&lt;PROJECT&gt;-NNN.seq</code>.", "Requirement-Deliverable &mdash; &#273;&#417;n v&#7883; c&#244;ng vi&#7879;c nh&#7887; nh&#7845;t, c&#243; th&#7875; nh&#7853;n ri&#234;ng, ki&#7875;m th&#7913; ri&#234;ng v&#224; qua gate ri&#234;ng."],
+  ["REQ", "A numbered requirement produced at Phase 1 (Spec) &mdash; the source every RD traces back to.", "Y&#234;u c&#7847;u &#273;&#432;&#7907;c &#273;&#225;nh s&#7889; t&#7841;o ra &#7903; Phase 1 (Spec) &mdash; g&#7889;c m&#224; m&#7885;i RD ph&#7843;i truy ng&#432;&#7907;c v&#7873;."],
+  ["AC", "Acceptance Criteria &mdash; given/when/then statements in an RD that define what \"done\" means for it.", "Ti&#234;u ch&#237; nghi&#7879;m thu &mdash; c&#225;c ph&#225;t bi&#7875;u given/when/then trong RD, x&#225;c &#273;&#7883;nh th&#7871; n&#224;o l&#224; \"xong\"."],
+  ["TC", "Test Case &mdash; a concrete test in <code>tests/**</code> that traces to exactly one AC.", "Test Case &mdash; m&#7897;t b&#224;i test c&#7909; th&#7875; trong <code>tests/**</code>, truy v&#7871; &#273;&#250;ng m&#7897;t AC."],
+  ["DoR", "Definition of Ready (Phase 7) &mdash; the six-validity-rule + testability check an RD must pass before Build.", "Definition of Ready (Phase 7) &mdash; ki&#7875;m tra 6 quy t&#7855;c h&#7907;p l&#7879; + kh&#7843; n&#259;ng ki&#7875;m th&#7917; tr&#432;&#7899;c khi v&#224;o Build."],
+  ["Red / Green", "Red = tests written and failing on purpose (proof they test something real). Green = the same tests now passing, byte-identical to the red run.", "Red = test &#273;&#227; vi&#7871;t v&#224; c&#7889; &#253; th&#7845;t b&#7841;i (ch&#7913;ng minh test c&#243; ki&#7875;m tra th&#7853;t). Green = c&#249;ng test &#273;&#243; nay pass, gi&#7889;ng h&#7879;t byte v&#7899;i l&#7847;n red."],
+  ["DEVBOOK", "Per-RD build log written at 8.7: red/green proof, files touched, refactor notes, content_hash.", "Nh&#7853;t k&#253; build cho t&#7915;ng RD, ghi &#7903; b&#432;&#7899;c 8.7: b&#7857;ng ch&#7913;ng red/green, file &#273;&#227; s&#7917;a, ghi ch&#250; refactor, content_hash."],
+  ["Gate profile", "Project-wide light/standard/heavy setting (<code>config/gates.yaml</code>) that sets how strict AI review, security review, delegation, and Dev Book requirements are.", "C&#7845;u h&#236;nh light/standard/heavy to&#224;n d&#7921; &#225;n (<code>config/gates.yaml</code>), quy &#273;&#7883;nh &#273;&#7897; ch&#7863;t c&#7911;a AI review, security review, ph&#226;n quy&#7873;n v&#224; Dev Book."],
+  ["module_overrides", "Per-module exceptions to the project's base gate profile, set in <code>config/gates.yaml</code>.", "Ngo&#7841;i l&#7879; theo t&#7915;ng module &#273;&#7889;i v&#7899;i profile g&#7889;c c&#7911;a d&#7921; &#225;n, khai b&#225;o trong <code>config/gates.yaml</code>."],
+  ["hazard_paths", "Glob patterns (auth/**, migrations/**, secrets, payment/**, pii/**, workflows) that force a profile up to heavy for any RD touching them &mdash; a one-way ratchet no config can lower.", "C&#225;c pattern glob (auth/**, migrations/**, secrets, payment/**, pii/**, workflows) bu&#7897;c profile l&#234;n heavy n&#7871;u RD &#273;&#7909;ng t&#7899;i &mdash; quy t&#7855;c m&#7897;t chi&#7873;u, kh&#244;ng c&#7845;u h&#236;nh n&#224;o h&#7841; th&#7845;p &#273;&#432;&#7907;c."],
+  ["Leash (A / A+)", "risk-gov's per-RD security-review requirement tier &mdash; A+ means sec-reviewer must run at Gate.", "M&#7913;c &#273;&#7897; y&#234;u c&#7847;u security review cho t&#7915;ng RD do risk-gov g&#225;n &mdash; A+ ngh&#297;a l&#224; sec-reviewer b&#7855;t bu&#7897;c ch&#7841;y &#7903; Gate."],
+  ["Delegation level (L0&ndash;L4)", "How much an agent may do unsupervised, from L0 (report-only, e.g. ai-reviewer) to L4 (orchestration, sub-pm). L5 is never granted.", "M&#7913;c &#273;&#7897; m&#7897;t agent &#273;&#432;&#7907;c t&#7921; quy&#7871;t, t&#7915; L0 (ch&#7881; b&#225;o c&#225;o, v&#237; d&#7909; ai-reviewer) &#273;&#7871;n L4 (&#273;i&#7873;u ph&#7889;i, sub-pm). Kh&#244;ng bao gi&#7901; c&#7845;p L5."],
+  ["max_in_flight", "The concurrency cap on how many RDs sub-pm may have claimed at once (<code>config/gates.yaml</code>).", "Gi&#7899;i h&#7841;n s&#7889; RD sub-pm &#273;&#432;&#7907;c nh&#7853;n c&#249;ng l&#250;c (<code>config/gates.yaml</code>)."],
+  ["one_way_ratchet", "Invariants in <code>config/gates.yaml</code> that a profile can only ever lower gates for non-hazard work &mdash; never raise risk beyond these floors.", "C&#225;c b&#7845;t bi&#7871;n trong <code>config/gates.yaml</code>: profile ch&#7881; &#273;&#432;&#7907;c h&#7841; gate cho c&#244;ng vi&#7879;c kh&#244;ng hazard &mdash; kh&#244;ng bao gi&#7901; n&#226;ng r&#7911;i ro v&#432;&#7907;t qu&#225; s&#224;n n&#224;y."],
+  ["sub-pm", "The orchestrator agent: claims RDs, resolves gate profile, and drives rd/*.md + state/ transitions.", "Agent &#273;i&#7873;u ph&#7889;i: nh&#7853;n RD, x&#225;c &#273;&#7883;nh gate profile, v&#224; d&#7851;n d&#7855;t chuy&#7875;n tr&#7841;ng th&#225;i rd/*.md + state/."],
+  ["ai-reviewer / sec-reviewer", "L0 read-only review agents at Gate &mdash; their only power is to write a report, never to edit code.", "Agent review ch&#7881; &#273;&#7885;c, m&#7913;c L0 t&#7841;i Gate &mdash; quy&#7873;n duy nh&#7845;t l&#224; vi&#7871;t b&#225;o c&#225;o, kh&#244;ng bao gi&#7901; s&#7917;a code."],
+  ["ADR", "Architecture Decision Record &mdash; written at Phase 3 for every non-trivial design trade-off.", "Bi&#234;n b&#7843;n quy&#7871;t &#273;&#7883;nh ki&#7871;n tr&#250;c &mdash; vi&#7871;t &#7903; Phase 3 cho m&#7895;i &#273;&#225;nh &#273;&#7893;i thi&#7871;t k&#7871; &#273;&#225;ng k&#7875;."],
+  ["MODULEMAP", "Phase 2 output: which module/service/file owns which REQ-derived responsibility.", "K&#7871;t qu&#7843; Phase 2: module/service/file n&#224;o s&#7903; h&#7919;u tr&#225;ch nhi&#7879;m n&#224;o b&#7855;t ngu&#7891;n t&#7915; REQ."],
+  ["WBS / EST", "Work Breakdown Structure and effort estimates produced at Phases 4&ndash;5.", "C&#7845;u tr&#250;c ph&#226;n r&#227; c&#244;ng vi&#7879;c v&#224; &#432;&#7899;c t&#237;nh c&#244;ng s&#7913;c, t&#7841;o ra &#7903; Phase 4&ndash;5."],
+  ["RTM", "Requirements Traceability Matrix, rolled up at Phase 10: RD &rarr; AC &rarr; TC &rarr; implementation &rarr; review verdict.", "Ma tr&#7853;n truy v&#7871;t y&#234;u c&#7847;u, t&#7893;ng h&#7907;p &#7903; Phase 10: RD &rarr; AC &rarr; TC &rarr; code &rarr; k&#7871;t qu&#7843; review."],
+  ["content_hash", "The hash pinning a red test run to its exact source, so Build can prove the green run used byte-identical tests.", "M&#227; hash g&#7855;n l&#7847;n ch&#7841;y test red v&#7899;i &#273;&#250;ng m&#227; ngu&#7891;n c&#7911;a n&#243;, &#273;&#7875; Build ch&#7913;ng minh l&#7847;n green d&#249;ng test gi&#7889;ng h&#7879;t."],
+];
+const glossaryBody = document.getElementById("wf-glossary-body");
+WF_GLOSSARY.forEach(([term, en, vn]) => {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td><strong>${term}</strong></td><td>${en}</td><td>${vn}</td>`;
+  glossaryBody.appendChild(tr);
+});
+
 
 /* ---------------- health check tab (static per-project snapshot, not live board.json) ----------------
    /cz:health-check has no JSON sidecar (unlike board.json / deliverables/index.json / gate-records/index.json)
    — it writes a prose report to deliverables/HEALTH-CHECK-<project>.md. After running it for THIS project,
    fill in HEALTH_CHECK below with that report's 7 dimensions (see the AIBOOTCAMP reference project for a
-   worked example) and re-run this block, or leave it empty to show the "not run yet" state. */
+   worked example) and re-run this block, or leave it empty to show the "not run yet" state.
+
+   Optional fields (all safe to omit — the renderer degrades gracefully without them):
+     diagnosis  : html string — one synthesized sentence for the hero ("strongest in X, weakest in Y").
+     sources    : string[] — exact files/paths every number on this tab was computed from, shown as a
+                  provenance line near the top so a reader knows what to trust and what to re-check.
+     dimensions[].subMetrics : [{ label, num, den, tone: "good"|"neutral"|"gap"|"hot" }, ...] — breaks a
+                  bundled ratio into its real constituent counts as mini bars inside the card. Mutually
+                  exclusive with `table` below — use whichever fits the check's actual shape.
+     dimensions[].table      : { headers: string[], rows: string[][] } — for a yes/no-per-area check
+                  (e.g. Decision coverage) where bars don't fit; cells "yes"/"no" get colored automatically.
+     dimensions[].badgeNote  : short string appended to the headline, e.g. "partial check" or
+                  "2 records missing a field" — for a dimension that's clean/gap on the whole but has a
+                  real nuance worth flagging without inventing a fourth severity tier.
+     dimensions[].confidence : { docs, code, tests, git: "high"|"med"|"low"|"na", pct: 0-100, note } — feeds
+                  the confidence-map table so a reader can tell a direct file-existence check from a manual
+                  spot-check rather than trusting every finding equally. */
 const HEALTH_CHECK = {
   checked_at: null,
   project: { reqs: null, rds: null, modules: null },
+  diagnosis: null,  // optional — see schema note above
+  sources: [],       // optional — see schema note above
   dimensions: [],   // [{ key, name, status: "clean"|"gap", severity: "clean"|"gap"|"hot", ratio: 0-100,
-                     //   metric, headline, findings: [html, ...], next: html }, ...] — one per dimension
+                     //   metric, headline, findings: [html, ...], next: html,
+                     //   subMetrics?, table?, badgeNote?, confidence? }, ...] — one per dimension
   nextActions: []   // [{ gap, dim, action }, ...]
 };
 
@@ -1118,12 +1869,20 @@ function renderHealthCheck() {
     : `Run <code>/cz:health-check &lt;project&gt;</code>, then populate the <code>HEALTH_CHECK</code> object near the top of this ` +
       `tab's script with its 7 dimensions to light this tab up.`;
 
+  const hero = document.getElementById("hc-hero");
+  const sourcesEl = document.getElementById("hc-sources");
   const strip = document.getElementById("hc-strip");
   strip.innerHTML = "";
   const grid = document.getElementById("hc-grid");
   grid.innerHTML = "";
+  const confWrap = document.getElementById("hc-conf-wrap");
+  const confLabel = document.getElementById("hc-conf-label");
 
   if (!hasData) {
+    hero.style.display = "none";
+    sourcesEl.style.display = "none";
+    confWrap.style.display = "none";
+    confLabel.style.display = "none";
     document.getElementById("hc-donut-card").innerHTML = '<div class="empty">&mdash;</div>';
     document.getElementById("hc-meters").innerHTML = '<div class="empty">no dimensions to chart yet</div>';
     grid.innerHTML = '<div class="empty">no health-check data yet for this project</div>';
@@ -1134,6 +1893,27 @@ function renderHealthCheck() {
   const cleanCount = hc.dimensions.filter(d => d.status === "clean").length;
   const gapCount = hc.dimensions.filter(d => d.status === "gap").length;
   const avgRatio = Math.round(hc.dimensions.reduce((sum, d) => sum + d.ratio, 0) / hc.dimensions.length);
+
+  // -- hero: one headline number + a synthesized plain-language diagnosis (optional) --
+  if (hc.diagnosis) {
+    hero.style.display = "flex";
+    hero.innerHTML =
+      `<div><div class="hc-hero-number">${avgRatio}%</div><div class="hc-hero-number-label">readiness<br>(avg. dimension health)</div></div>` +
+      `<div class="hc-hero-diagnosis">${hc.diagnosis}</div>`;
+  } else {
+    hero.style.display = "none";
+  }
+
+  // -- provenance: exact sources every metric on this tab was computed from (optional) --
+  if (hc.sources && hc.sources.length) {
+    sourcesEl.style.display = "block";
+    sourcesEl.innerHTML =
+      `<strong>Source note.</strong> Metrics computed from the current workspace: ${hc.sources.join(", ")}. ` +
+      `Read-only pass &mdash; nothing here is written back, and no pipeline gate reads this tab.`;
+  } else {
+    sourcesEl.style.display = "none";
+  }
+
   strip.appendChild(metricCard("Avg. dimension health", avgRatio + "%", "mean of all 7 ratios below"));
   strip.appendChild(metricCard("Dimensions clean", cleanCount + "/" + hc.dimensions.length, "no action needed"));
   strip.appendChild(metricCard("Dimensions with gaps", gapCount + "/" + hc.dimensions.length, "have a concrete next action"));
@@ -1145,10 +1925,35 @@ function renderHealthCheck() {
     const card = document.createElement("div");
     card.className = "hc-card hc-" + d.severity;
     const findingsHtml = d.findings.map(f => `<li>${f}</li>`).join("");
+    const badgeNoteHtml = d.badgeNote ? ` <span class="hc-badge-note">&middot; ${d.badgeNote}</span>` : "";
+
+    // sub-metric bars (which part of a bundled ratio is dragging it down) — or,
+    // for a yes/no-per-area check, a small table. Both optional, mutually exclusive.
+    let breakdownHtml = "";
+    if (d.subMetrics) {
+      breakdownHtml = `<div class="hc-sub-bars">` + d.subMetrics.map(s => {
+        const pct = Math.round((s.num / s.den) * 100);
+        return `<div class="hc-sub-row">` +
+          `<span class="hc-sub-label" title="${s.label}">${s.label}</span>` +
+          `<span class="hc-sub-value">${s.num}/${s.den} &middot; ${pct}%</span>` +
+          `<div class="hc-sub-track"><div class="hc-sub-fill ${s.tone}" style="width:${pct}%;"></div></div>` +
+          `</div>`;
+      }).join("") + `</div>`;
+    } else if (d.table) {
+      const rowsHtml = d.table.rows.map(r =>
+        `<tr>${r.map((cell, i) => {
+          const cls = (cell === "yes") ? "yes" : (cell === "no") ? "no" : "";
+          return `<td class="${cls}">${cell}</td>`;
+        }).join("")}</tr>`
+      ).join("");
+      breakdownHtml = `<table class="hc-mini-table"><thead><tr>${d.table.headers.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rowsHtml}</tbody></table>`;
+    }
+
     card.innerHTML =
       `<div class="hc-card-head"><span class="hc-card-name">${d.name}</span><span class="hc-badge">${HC_SEVERITY_LABEL[d.severity]}</span></div>` +
       `<div class="hc-card-metric">${d.metric} <span style="font-size:12px;color:var(--dim);font-weight:normal;">&middot; ${d.ratio}%</span></div>` +
-      `<div class="hc-card-headline">${d.headline}</div>` +
+      `<div class="hc-card-headline">${d.headline}${badgeNoteHtml}</div>` +
+      breakdownHtml +
       `<details><summary>findings &amp; next action</summary>` +
       `<ul>${findingsHtml}</ul>` +
       `<div class="hc-next"><strong>Next:</strong> ${d.next}</div>` +
@@ -1156,9 +1961,46 @@ function renderHealthCheck() {
     grid.appendChild(card);
   });
 
+  // -- confidence map: skip the whole section if no dimension carries a confidence field --
+  const hasConfidence = hc.dimensions.some(d => d.confidence);
+  if (hasConfidence) {
+    confWrap.style.display = "block";
+    confLabel.style.display = "block";
+    renderHealthConfidence(hc);
+  } else {
+    confWrap.style.display = "none";
+    confLabel.style.display = "none";
+  }
+
   renderHealthActions("");
   document.getElementById("hc-filter").addEventListener("input", (e) => {
     renderHealthActions(e.target.value.trim().toLowerCase());
+  });
+}
+
+// confidence map: per-dimension evidence basis (which source types back the
+// finding) + a rough confidence % and the reason, so a reader can judge how
+// much to trust each card above rather than take every number at face value.
+const HC_CONF_LABEL = { high: "high", med: "med", low: "low", na: "n/a" };
+function confPill(level) {
+  return `<span class="hc-conf-pill ${level}">${HC_CONF_LABEL[level]}</span>`;
+}
+function renderHealthConfidence(hc) {
+  const tbody = document.getElementById("hc-conf-body");
+  tbody.innerHTML = "";
+  hc.dimensions.forEach(d => {
+    const c = d.confidence;
+    if (!c) return;
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td>${d.name}</td>` +
+      `<td>${confPill(c.docs)}</td>` +
+      `<td>${confPill(c.code)}</td>` +
+      `<td>${confPill(c.tests)}</td>` +
+      `<td>${confPill(c.git)}</td>` +
+      `<td class="hc-conf-pct">${c.pct}%</td>` +
+      `<td class="hc-conf-note">${c.note}</td>`;
+    tbody.appendChild(tr);
   });
 }
 
