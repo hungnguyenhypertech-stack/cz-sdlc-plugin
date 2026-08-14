@@ -99,6 +99,26 @@ cz_rd_fm() {
   fi
 }
 
+# cz_rd_statement_summary <rd-file-path>
+# Fallback for board.json's Summary column when an RD has no `summary:`
+# frontmatter field (every RD authored before that field existed, or authored
+# by hand without it — cz_rd_field returns empty in both cases, same as an
+# absent field). Derives a one-line gloss from the RD body's "## Statement"
+# section instead of leaving the board cell blank: joins its lines, collapses
+# whitespace, and strips backticks. Caller (project-state.sh) truncates to
+# schema's 120-char summary cap. Not a substitute for authoring a real
+# `summary:` field — this section's prose is written for a full read, not a
+# scannable one-liner, so the fallback is serviceable, not equivalent.
+cz_rd_statement_summary() {
+  local file="$1"
+  awk '
+    /^---[ \t]*$/ { c++; next }
+    c>=2 && /^##[ \t]+Statement/ { insec=1; next }
+    c>=2 && insec && /^##[ \t]/ { exit }
+    c>=2 && insec { print }
+  ' "$file" | tr -d '`' | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g; s/^ +//; s/ +$//'
+}
+
 # cz_rd_field <rd-file-path> <field>
 # Minimal YAML scalar reader over an RD's frontmatter. <field> may be a
 # top-level key ("state", "content_hash", ...) or one level of nesting via

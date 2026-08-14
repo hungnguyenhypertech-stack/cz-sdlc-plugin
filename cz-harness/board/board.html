@@ -1189,11 +1189,29 @@
     </select>
   </div>
 
+  <!-- RD list and Agent activity are always-visible sections (not behind a
+       click-to-view sub-tab) so both are on screen before Pipeline board. -->
+  <div class="section-label">RD list</div>
+  <div class="rd-table-wrap">
+    <table class="rd-table">
+      <thead>
+        <tr><th>RD</th><th>Module</th><th>State</th><th>Agent</th><th>Time in state</th><th>Summary</th></tr>
+      </thead>
+      <tbody id="rd-table-body"></tbody>
+    </table>
+  </div>
+  <div class="rd-pager">
+    <button id="rd-prev">&lsaquo; prev</button>
+    <span id="rd-page-info">&mdash;</span>
+    <button id="rd-next">next &rsaquo;</button>
+  </div>
+
+  <div class="section-label">Agent activity</div>
+  <div class="agents" id="agents-panel"></div>
+
   <div class="lb-subtabs">
     <button class="lb-subtab active" data-sub="pipeline">Pipeline board</button>
-    <button class="lb-subtab" data-sub="agents">Agent activity</button>
     <button class="lb-subtab" data-sub="risks">Risks &amp; blockers<span class="lb-badge" id="lb-risk-badge" style="display:none;">0</span></button>
-    <button class="lb-subtab" data-sub="table">RD list</button>
   </div>
 
   <div class="lb-subpanel active" data-subpanel="pipeline">
@@ -1207,28 +1225,8 @@
     </div>
   </div>
 
-  <div class="lb-subpanel" data-subpanel="agents">
-    <div class="agents" id="agents-panel"></div>
-  </div>
-
   <div class="lb-subpanel" data-subpanel="risks">
     <div class="strip" id="strip-rows"></div>
-  </div>
-
-  <div class="lb-subpanel" data-subpanel="table">
-    <div class="rd-table-wrap">
-      <table class="rd-table">
-        <thead>
-          <tr><th>RD</th><th>Module</th><th>State</th><th>Agent</th><th>Time in state</th><th>Summary</th></tr>
-        </thead>
-        <tbody id="rd-table-body"></tbody>
-      </table>
-    </div>
-    <div class="rd-pager">
-      <button id="rd-prev">&lsaquo; prev</button>
-      <span id="rd-page-info">&mdash;</span>
-      <button id="rd-next">next &rsaquo;</button>
-    </div>
   </div>
 </div>
 

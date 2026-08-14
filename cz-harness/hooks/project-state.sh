@@ -61,6 +61,16 @@ if [ -d "$RD_DIR" ]; then
     claimed_at="$(cz_rd_field "$rd_file" claimed_at | tr -d '"')"
     module="$(cz_rd_field "$rd_file" module | tr -d ' ')"
     summary="$(cz_rd_field "$rd_file" summary | sed -E 's/^"(.*)"$/\1/')"
+    if [ "$summary" = "null" ]; then summary=""; fi
+    # No summary: field (RD authored before it existed, or hand-authored
+    # without one) — fall back to a truncated gloss of the "## Statement"
+    # section rather than showing a blank Summary column on the board.
+    if [ -z "$summary" ]; then
+      summary="$(cz_rd_statement_summary "$rd_file")"
+      if [ ${#summary} -gt 120 ]; then
+        summary="${summary:0:119}…"
+      fi
+    fi
     leash="$(cz_rd_field "$rd_file" delegation.leash | tr -d ' "')"
     priority="$(cz_rd_field "$rd_file" priority | tr -d ' ')"
     expected_h="$(cz_rd_field "$rd_file" estimate.expected_h | tr -d ' ')"
