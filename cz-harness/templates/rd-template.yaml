@@ -125,6 +125,17 @@ red_skipped: false             # PERMANENT once true. Only ever true under profi
                               # light AND layer: 1. Never toggle back to false —
                               # if used in error, open a new RD version instead.
 
+pending_verification: false    # OPTIONAL, defaults false. Set true when this RD's build
+                              # loop had to move forward without a genuine red-green
+                              # cycle for a documented reason outside the loop's control
+                              # (e.g. blocked on external tooling/hardware/a dependency)
+                              # — distinct from red_skipped's light-profile policy skip.
+                              # hooks/guard-state-transition.sh refuses human_review->
+                              # accepted while this is true, so flip it back to false
+                              # only once the real red-green cycle has actually run.
+# pending_verification_reason: "REPLACE_ME — required whenever pending_verification is
+#                               true; what's blocked and why (schemas/rd.schema.json)."
+
 # --- Lifecycle (system-managed — do not hand-edit after draft) -------------------
 state: red                     # draft | blocked_dep | ready | claimed | red | green |
                               # ai_review | sec_review | human_review | accepted |

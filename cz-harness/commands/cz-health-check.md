@@ -1,7 +1,7 @@
 ---
 description: Score traceability memory (not just its graph shape) across 7 dimensions — coverage, change coupling, freshness, orphan rate, review evidence, decision coverage, retrieval quality
 argument-hint: [project-code]
-allowed-tools: Read, Write(deliverables/HEALTH-CHECK*.md), Bash, Grep, Glob, Task
+allowed-tools: Read, Write(deliverables/HEALTH-CHECK*.md), Write(deliverables/HEALTH-CHECK*.json), Bash, Grep, Glob, Task
 ---
 
 Answers one question for project `$1`: **if we have a lot of documentation, is it correct, alive, and usable?** — the check that must follow any "we have full traceability" claim (see `docs/PILLAR-MAP.md`'s Governance pillar and `skills/traceability/SKILL.md`).
@@ -24,6 +24,24 @@ This is deliberately not `/cz:report`. `/cz:report` walks the **RTM's 7 orphan c
 3. **Delegate** — dispatch the `agentops` agent via Task with the raw per-dimension findings from step 2 (counts, id lists, mtime diffs, verdict tallies — not conclusions). Instruct it to write the narrative report, cite every finding back to its source file/line rather than asserting a number unsupported by a citation, and to keep the same "state a fact plus its implication, don't editorialize past the evidence" register `ai-reviewer`'s gate-1 reports already use.
 
 4. **Execute** — `agentops` writes `deliverables/HEALTH-CHECK-$1.md`: a per-dimension section (Coverage, Change coupling, Freshness, Orphan rate, Review evidence, Decision coverage, Retrieval quality) each with its count/ratio, its concrete finding list, and one "next action" pointing at the command that would close the gap (e.g. a lineage-exhausted REQ → re-cut a fresh RD via `/cz:rd`; a stale doc render → re-run `render-deliverable.sh` or re-`Write` the file; an all-`auto` approver tally on a profile that expects human sign-off → escalate to the human, don't silently patch `config/gates.yaml`). No pass/fail gate verdict is produced — this command reports health, it does not block anything.
+   In the same dispatch, `agentops` also writes `deliverables/HEALTH-CHECK-$1.json` — a machine-readable sidecar of the exact same findings, in the shape `board/board.html`'s `HEALTH_CHECK` object expects (see that file's schema comment above the `HEALTH_CHECK_EMPTY` constant):
+   ```
+   {
+     "checked_at": "<RFC3339 timestamp>",
+     "project": { "reqs": <int>, "rds": <int>, "modules": <int> },
+     "diagnosis": "<optional html string>",
+     "sources": ["<optional file/path>", ...],
+     "dimensions": [
+       { "key": "coverage", "name": "Coverage", "status": "clean"|"gap", "severity": "clean"|"gap"|"hot",
+         "ratio": <0-100>, "metric": "<e.g. '9/10 REQs covered'>", "headline": "<one-line finding>",
+         "findings": ["<html>", ...], "next": "<html next-action>" },
+       ... one object per dimension, same 7 keys as the .md sections: coverage, change_coupling, freshness,
+       orphan_rate, review_evidence, decision_coverage, retrieval_quality ...
+     ],
+     "nextActions": [ { "gap": "<short label>", "dim": "<dimension key>", "action": "<html>" }, ... ]
+   }
+   ```
+   This is the one deliverable in this command with a JSON sidecar requirement — without it the board's Health Check tab has no live data source and stays on its "not run yet" empty state (`board/board.html`'s `refresh()` fetches `../deliverables/HEALTH-CHECK-<project>.json` every cycle, same pattern as `state/board.json`/`gate-records/index.json`, and falls back to empty on a 404 or parse error). No hand-transcription into `board.html` is needed or expected anymore.
 
 5. **Gate** — none. This command never blocks a pipeline step and is not itself a pipeline step (`step: n/a` in its deliverable, same convention as `/cz:explain`'s `EXPLAIN` kind). Running it, or finding problems with it, has no effect on `state/board.json`.
 

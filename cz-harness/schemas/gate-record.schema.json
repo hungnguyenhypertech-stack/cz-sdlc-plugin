@@ -103,6 +103,8 @@
           },
           "additionalProperties": true
         },
+        "pending_verification": { "type": "boolean", "description": "Copied verbatim from rd/<id>.md's frontmatter at step 7 (commands/cz-gate.md) when true — this RD's build loop moved forward without a genuine red-green cycle for a documented external reason. hooks/guard-state-transition.sh refuses human_review->accepted while the RD frontmatter still has this true, so an approved decision here should never coexist with pending_verification:true on disk; present regardless so a rejected-then-reworked RD's history still shows it was once deferred." },
+        "pending_verification_reason": { "type": "string", "description": "Copied verbatim from rd/<id>.md's frontmatter alongside pending_verification, when present." },
         "estimate_variance": {
           "type": "object",
           "description": "Only present when gate_decision.decision is \"approved\" — written by hooks/compute-estimate-variance.sh at /cz:gate step 8, before the lock is released. Compares planner's pre-build estimate.expected_h/.pessimistic (rd/<id>.md) against this RD's actual build time, derived purely from telemetry/events.jsonl timestamps already recorded for this rd id — no new capture mechanism, no token figures (Claude Code hooks have no real per-RD token/cost source; see emit-telemetry.sh's cost_usd comment). This is the audit point a later /cz:audit run or agentops WEEKLY rollup reads to judge whether planner's estimates run systematically high or low.",

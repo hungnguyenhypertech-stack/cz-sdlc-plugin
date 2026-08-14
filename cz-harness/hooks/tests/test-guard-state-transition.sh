@@ -143,6 +143,33 @@ assert_transition "sec_review->human_review allow" sec_review human_review allow
 assert_transition "sec_review->rejected allow" sec_review rejected allow
 assert_transition "human_review->accepted allow" human_review accepted allow
 assert_transition "human_review->rejected allow" human_review rejected allow
+
+# --- human_review->accepted additionally denied while pending_verification
+# is true (schemas/rd.schema.json / NOTES-future-improvements.md item 5) —
+# a deferred red-green proof must not be silently acceptable.
+cat > "$RD_FILE" <<EOF
+id: $RD_ID
+version: 1
+content_hash: "sha256:ABCDEF"
+state: human_review
+layer: 0
+red_skipped: false
+pending_verification: true
+pending_verification_reason: "blocked on external test rig"
+EOF
+check "human_review->accepted deny: pending_verification true" deny "$(run_transition accepted)"
+check "human_review->rejected allow: pending_verification true (rejection is always allowed)" allow "$(run_transition rejected)"
+
+cat > "$RD_FILE" <<EOF
+id: $RD_ID
+version: 1
+content_hash: "sha256:ABCDEF"
+state: human_review
+layer: 0
+red_skipped: false
+pending_verification: false
+EOF
+check "human_review->accepted allow: pending_verification false" allow "$(run_transition accepted)"
 assert_transition "rejected->red allow" rejected red allow
 assert_transition "stale->red allow" stale red allow
 assert_transition "stale->ready allow" stale ready allow

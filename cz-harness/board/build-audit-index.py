@@ -14,6 +14,18 @@ import re
 import sys
 from pathlib import Path
 
+if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+    print(__doc__)
+    sys.exit(0)
+
+# A stray flag (leading "-") in argv[1] used to be silently accepted as a
+# project-root path — e.g. `--help` resolved to a real `--help/` directory
+# created in cwd, with no error and no signal that the flag was never
+# recognized. Fail loudly instead: only a bare positional arg is a path.
+if len(sys.argv) > 1 and sys.argv[1].startswith("-"):
+    print(f"error: unrecognized argument {sys.argv[1]!r}\n\n{__doc__}", file=sys.stderr)
+    sys.exit(2)
+
 # ROOT is the PROJECT root, never this script's own location. Deriving it from
 # __file__ (as this did) resolves to the plugin install directory once the
 # plugin is installed from a marketplace — so it read the plugin's own
@@ -118,6 +130,13 @@ def build_audit_rows():
                     "idle_h": ev.get("idle_h"),
                     "variance_pct": ev.get("variance_pct"),
                     "within_pessimistic_bound": ev.get("within_pessimistic_bound"),
+                    # See schemas/gate-record.schema.json's pending_verification: a
+                    # deferred red-green proof, copied from rd/<id>.md by cz-gate.md
+                    # step 7. Surfaced here so the board's Audit tab can flag it the
+                    # same way it flags everything else, instead of it only being
+                    # visible in the RTM.
+                    "pending_verification": data.get("pending_verification"),
+                    "pending_verification_reason": data.get("pending_verification_reason"),
                 })
     rows.sort(key=lambda r: r.get("timestamp") or "", reverse=True)
     return rows

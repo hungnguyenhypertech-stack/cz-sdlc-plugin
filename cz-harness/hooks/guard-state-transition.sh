@@ -113,7 +113,24 @@ is_allowed() {
       ;;
     "ai_review->sec_review"|"ai_review->human_review"|"ai_review->rejected") return 0 ;;
     "sec_review->human_review"|"sec_review->rejected") return 0 ;;
-    "human_review->accepted"|"human_review->rejected") return 0 ;;
+    "human_review->accepted")
+      # A build loop that had to move forward without a genuine red-green
+      # cycle (blocked on external tooling/hardware/a dependency — distinct
+      # from the light-profile red_skipped policy skip above) must record
+      # that on the RD via pending_verification/pending_verification_reason
+      # (schemas/rd.schema.json). Denying accepted while it's still true is
+      # what keeps that fact from disappearing the moment someone edits the
+      # RD file again — NOTES-future-improvements.md item 5: without this,
+      # a deferred proof looks identical to a properly proven one everywhere
+      # downstream (RTM, gate record, board).
+      local pv
+      pv="$(cz_rd_field "$FILE_PATH" pending_verification 2>/dev/null | tr -d ' ')"
+      if [ "$pv" = "true" ]; then
+        cz_deny "human_review->accepted refused for $(basename "$FILE_PATH" .md): pending_verification is still true — this RD's red-green proof was deferred and has not been resolved. Either complete the real red-green cycle and set pending_verification:false, or this RD cannot be accepted."
+      fi
+      return 0
+      ;;
+    "human_review->rejected") return 0 ;;
     "rejected->red") return 0 ;;
     "stale->red"|"stale->ready") return 0 ;;
     "blocked_hardstop->"*) return 0 ;;   # returns to prior state or stale; both allowed

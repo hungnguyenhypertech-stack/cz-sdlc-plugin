@@ -66,6 +66,8 @@
       }
     },
     "red_skipped": { "type": "boolean", "description": "Permanent once true. Only ever true under profile: light AND layer: 1." },
+    "pending_verification": { "type": "boolean", "description": "True when this RD's build loop had to move forward without completing a genuine red-green cycle, for a documented reason outside the loop's control (e.g. blocked on external tooling/hardware/a dependency not yet available) — distinct from red_skipped, which is the light-profile/layer-1 policy skip. Not clearable by simply omitting the field: hooks/guard-state-transition.sh denies any transition to accepted while this is true, so the deferred proof stays visible until someone actually runs it and flips this back to false. Optional; absent is treated as false." },
+    "pending_verification_reason": { "type": "string", "minLength": 1, "description": "Required whenever pending_verification is true (see the allOf conditional below). Free text: what's blocked and why red-green could not run, e.g. 'blocked on external hardware rig, ETA next sprint'." },
     "state": {
       "type": "string",
       "enum": ["draft", "blocked_dep", "ready", "claimed", "red", "green", "ai_review", "sec_review", "human_review", "accepted", "rejected", "stale", "blocked_hardstop", "withdrawn", "superseded"]
@@ -97,6 +99,11 @@
       "properties": {
         "ac": { "minItems": 1, "maxItems": 3 }
       }
+    },
+    {
+      "description": "A deferred red-green proof must always be explained — pending_verification:true with no reason is exactly the silent-loss failure mode this field exists to prevent.",
+      "if": { "properties": { "pending_verification": { "const": true } }, "required": ["pending_verification"] },
+      "then": { "required": ["pending_verification_reason"] }
     }
   ]
 }

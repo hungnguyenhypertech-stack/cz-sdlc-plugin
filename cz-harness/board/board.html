@@ -1823,11 +1823,12 @@ WF_GLOSSARY.forEach(([term, en, vn]) => {
 });
 
 
-/* ---------------- health check tab (static per-project snapshot, not live board.json) ----------------
-   /cz:health-check has no JSON sidecar (unlike board.json / deliverables/index.json / gate-records/index.json)
-   — it writes a prose report to deliverables/HEALTH-CHECK-<project>.md. After running it for THIS project,
-   fill in HEALTH_CHECK below with that report's 7 dimensions (see the AIBOOTCAMP reference project for a
-   worked example) and re-run this block, or leave it empty to show the "not run yet" state.
+/* ---------------- health check tab (polled JSON sidecar, same pattern as board.json / index.json) ----------------
+   /cz:health-check writes both the prose report (deliverables/HEALTH-CHECK-<project>.md) and a JSON sidecar
+   (deliverables/HEALTH-CHECK-<project>.json) in exactly the shape HEALTH_CHECK below expects — the same
+   agentops dispatch (commands/cz-health-check.md step 4) writes both. refresh() fetch()es that sidecar every
+   cycle, same as BOARD_URL/AUDIT_URL/DELIVERABLES_URL, and falls back to this empty "not run yet" default
+   when the file doesn't exist yet (project never health-checked) or fails to parse — no manual fill-in step.
 
    Optional fields (all safe to omit — the renderer degrades gracefully without them):
      diagnosis  : html string — one synthesized sentence for the hero ("strongest in X, weakest in Y").
@@ -1844,7 +1845,7 @@ WF_GLOSSARY.forEach(([term, en, vn]) => {
      dimensions[].confidence : { docs, code, tests, git: "high"|"med"|"low"|"na", pct: 0-100, note } — feeds
                   the confidence-map table so a reader can tell a direct file-existence check from a manual
                   spot-check rather than trusting every finding equally. */
-const HEALTH_CHECK = {
+const HEALTH_CHECK_EMPTY = {
   checked_at: null,
   project: { reqs: null, rds: null, modules: null },
   diagnosis: null,  // optional — see schema note above
@@ -1854,6 +1855,7 @@ const HEALTH_CHECK = {
                      //   subMetrics?, table?, badgeNote?, confidence? }, ...] — one per dimension
   nextActions: []   // [{ gap, dim, action }, ...]
 };
+let HEALTH_CHECK = HEALTH_CHECK_EMPTY;
 
 const HC_SEVERITY_COLOR = { clean: "var(--green)", gap: "var(--amber)", hot: "var(--red)" };
 const HC_SEVERITY_LABEL = { clean: "clean", gap: "gap", hot: "critical" };
@@ -2536,11 +2538,22 @@ async function refresh() {
   document.getElementById("hdr-sidebar-project").textContent =
     (data.project || "—") + (data.profile ? " · " + data.profile : "");
   const hcNote = document.getElementById("hc-note");
+  const hcProject = data.project || "PROJECT";
   if (hcNote) {
-    const hcProject = data.project || "PROJECT";
     hcNote.innerHTML = `Snapshot from <code>/cz:health-check</code> &middot; read-only, no gate profile, does not block any pipeline step &middot; ` +
       `full narrative in <a href="../deliverables/HEALTH-CHECK-${escapeHtml(hcProject)}.html">deliverables/HEALTH-CHECK-${escapeHtml(hcProject)}.md</a>.`;
   }
+  if (data.project) {
+    try {
+      const hcRes = await fetch(`../deliverables/HEALTH-CHECK-${encodeURIComponent(hcProject)}.json`, { cache: "no-store" });
+      HEALTH_CHECK = hcRes.ok ? await hcRes.json() : HEALTH_CHECK_EMPTY;
+    } catch (e) {
+      HEALTH_CHECK = HEALTH_CHECK_EMPTY;
+    }
+  } else {
+    HEALTH_CHECK = HEALTH_CHECK_EMPTY;
+  }
+  renderHealthCheck();
   document.getElementById("hdr-wave").textContent = data.wave != null ? "Wave " + data.wave : "";
   document.getElementById("hdr-profile").textContent = data.profile || "—";
   const maxInFlight = (data.concurrency && data.concurrency.max_in_flight) || "—";
